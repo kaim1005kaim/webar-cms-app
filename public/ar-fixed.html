@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>AR Keyholder - Fixed Version</title>
+    <!-- A-Frame のみ読み込み（Three.jsは含まれている） -->
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.0/aframe/build/aframe-ar.js"></script>
+    <style>
+        body { 
+            margin: 0; 
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+            background: #000;
+        }
+        
+        #status {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 1000;
+            font-size: 12px;
+            max-width: 250px;
+        }
+        
+        #controls {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 1000;
+            text-align: center;
+        }
+        
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            margin: 2px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        
+        button:active {
+            background: #2980b9;
+        }
+        
+        .status-ok { color: #2ecc71; }
+        .status-warn { color: #f39c12; }
+        .status-error { color: #e74c3c; }
+    </style>
+</head>
+<body>
+    <div id="status">
+        <strong>🎯 AR Keyholder</strong><br>
+        <span id="camera-status">📷 カメラ: 起動中...</span><br>
+        <span id="marker-status">📍 マーカー: 未検出</span><br>
+        <span id="object-status">🎁 オブジェクト: 準備中</span>
+    </div>
+    
+    <div id="controls">
+        <div style="margin-bottom: 5px;">
+            <button onclick="moveObject('up')">↑</button><br>
+            <button onclick="moveObject('left')">←</button>
+            <button onclick="moveObject('center')">●</button>
+            <button onclick="moveObject('right')">→</button><br>
+            <button onclick="moveObject('down')">↓</button>
+        </div>
+        <button onclick="toggleVisibility()" style="background: #27ae60;">表示/非表示</button>
+        <button onclick="resetAll()" style="background: #e74c3c;">リセット</button>
+    </div>
+
+    <!-- AR.js Scene - シンプルな設定 -->
+    <a-scene
+        vr-mode-ui="enabled: false"
+        renderer="logarithmicDepthBuffer: true; antialias: true"
+        embedded
+        arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false">
+        
+        <!-- Hiroマーカー -->
+        <a-marker preset="hiro" id="marker">
+            
+            <!-- キーホルダーグループ -->
+            <a-entity id="keyholder-group" position="0 0 0">
+                
+                <!-- メインボディ（赤い箱） -->
+                <a-box
+                    id="main-body"
+                    position="0 0.5 0"
+                    width="0.5"
+                    height="0.8"
+                    depth="0.2"
+                    color="#e74c3c"
+                    animation="property: rotation; to: 0 360 0; loop: true; dur: 10000">
+                </a-box>
+                
+                <!-- 顔（黄色い球） -->
+                <a-sphere
+                    id="head"
+                    position="0 0.9 0.15"
+                    radius="0.15"
+                    color="#f1c40f">
+                </a-sphere>
+                
+                <!-- 目（左） -->
+                <a-sphere
+                    position="-0.05 0.95 0.25"
+                    radius="0.03"
+                    color="#000">
+                </a-sphere>
+                
+                <!-- 目（右） -->
+                <a-sphere
+                    position="0.05 0.95 0.25"
+                    radius="0.03"
+                    color="#000">
+                </a-sphere>
+                
+                <!-- キーリング（シルバー） -->
+                <a-torus
+                    id="ring"
+                    position="0 1.3 0"
+                    color="#bdc3c7"
+                    radius="0.2"
+                    radius-tubular="0.02"
+                    rotation="90 0 0"
+                    animation="property: rotation; to: 90 360 0; loop: true; dur: 8000">
+                </a-torus>
+                
+                <!-- ベース（影用） -->
+                <a-cylinder
+                    position="0 0.05 0"
+                    radius="0.4"
+                    height="0.05"
+                    color="#34495e"
+                    opacity="0.5">
+                </a-cylinder>
+                
+            </a-entity>
+        </a-marker>
+        
+        <!-- ライト -->
+        <a-light type="ambient" color="#ffffff" intensity="0.5"></a-light>
+        <a-light type="directional" position="0 10 5" color="#ffffff" intensity="0.5"></a-light>
+        
+        <!-- カメラ -->
+        <a-entity camera></a-entity>
+    </a-scene>
+
+    <script>
+        // 要素の参照
+        const marker = document.getElementById('marker');
+        const keyholderGroup = document.getElementById('keyholder-group');
+        const cameraStatus = document.getElementById('camera-status');
+        const markerStatus = document.getElementById('marker-status');
+        const objectStatus = document.getElementById('object-status');
+        
+        // 現在の位置
+        let currentPosition = { x: 0, y: 0, z: 0 };
+        
+        // マーカー検出イベント
+        marker.addEventListener('markerFound', () => {
+            console.log('✅ Marker found!');
+            markerStatus.innerHTML = '📍 マーカー: <span class="status-ok">検出中</span>';
+            objectStatus.innerHTML = '🎁 オブジェクト: <span class="status-ok">表示中</span>';
+            // オブジェクトを確実に表示
+            keyholderGroup.setAttribute('visible', 'true');
+        });
+        
+        marker.addEventListener('markerLost', () => {
+            console.log('❌ Marker lost');
+            markerStatus.innerHTML = '📍 マーカー: <span class="status-warn">未検出</span>';
+            objectStatus.innerHTML = '🎁 オブジェクト: <span class="status-warn">非表示</span>';
+        });
+        
+        // カメラ起動完了
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                cameraStatus.innerHTML = '📷 カメラ: <span class="status-ok">アクティブ</span>';
+                objectStatus.innerHTML = '🎁 オブジェクト: <span class="status-ok">準備完了</span>';
+            }, 3000);
+        });
+        
+        // オブジェクト移動
+        function moveObject(direction) {
+            const step = 0.1;
+            switch(direction) {
+                case 'up':
+                    currentPosition.y += step;
+                    break;
+                case 'down':
+                    currentPosition.y -= step;
+                    break;
+                case 'left':
+                    currentPosition.x -= step;
+                    break;
+                case 'right':
+                    currentPosition.x += step;
+                    break;
+                case 'center':
+                    currentPosition = { x: 0, y: 0, z: 0 };
+                    break;
+            }
+            updatePosition();
+        }
+        
+        // 位置更新
+        function updatePosition() {
+            const posStr = `${currentPosition.x} ${currentPosition.y} ${currentPosition.z}`;
+            keyholderGroup.setAttribute('position', posStr);
+            console.log('Position updated:', posStr);
+        }
+        
+        // 表示/非表示切替
+        function toggleVisibility() {
+            const isVisible = keyholderGroup.getAttribute('visible');
+            keyholderGroup.setAttribute('visible', !isVisible);
+            console.log('Visibility:', !isVisible);
+        }
+        
+        // リセット
+        function resetAll() {
+            currentPosition = { x: 0, y: 0, z: 0 };
+            updatePosition();
+            keyholderGroup.setAttribute('visible', 'true');
+            console.log('Reset complete');
+        }
+        
+        // デバッグ情報
+        console.log('AR Fixed Version Loaded');
+        console.log('A-Frame:', AFRAME.version);
+        
+        // シーン読み込み完了
+        document.querySelector('a-scene').addEventListener('loaded', () => {
+            console.log('✅ Scene loaded successfully');
+            // 初期状態で表示
+            keyholderGroup.setAttribute('visible', 'true');
+        });
+        
+        // エラーハンドリング
+        window.addEventListener('error', (e) => {
+            console.error('Runtime error:', e.error);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AR Keyholder - Version Select</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 30px;
+            max-width: 600px;
+            width: 100%;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .version-card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+        
+        .version-card:hover {
+            border-color: #3498db;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        .version-card h2 {
+            color: #34495e;
+            margin-top: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .version-card p {
+            color: #7f8c8d;
+            margin: 10px 0;
+        }
+        
+        .btn {
+            display: inline-block;
+            background: #3498db;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            text-decoration: none;
+            transition: background 0.3s ease;
+        }
+        
+        .btn:hover {
+            background: #2980b9;
+        }
+        
+        .btn-success {
+            background: #27ae60;
+        }
+        
+        .btn-success:hover {
+            background: #229954;
+        }
+        
+        .btn-warning {
+            background: #f39c12;
+        }
+        
+        .btn-warning:hover {
+            background: #d68910;
+        }
+        
+        .status {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .status-new {
+            background: #e74c3c;
+            color: white;
+        }
+        
+        .status-stable {
+            background: #27ae60;
+            color: white;
+        }
+        
+        .status-test {
+            background: #f39c12;
+            color: white;
+        }
+        
+        .admin-link {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #ecf0f1;
+        }
+        
+        .features {
+            list-style: none;
+            padding: 0;
+            margin: 10px 0;
+        }
+        
+        .features li {
+            padding: 5px 0;
+            color: #7f8c8d;
+        }
+        
+        .features li:before {
+            content: "✓ ";
+            color: #27ae60;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 AR Keyholder</h1>
+        
+        <div class="version-card">
+            <h2>
+                🔧 修正版
+                <span class="status status-new">NEW</span>
+            </h2>
+            <p>エラーを修正し、確実に動作するシンプルな実装</p>
+            <ul class="features">
+                <li>マーカー検出の安定性向上</li>
+                <li>3Dオブジェクトの確実な表示</li>
+                <li>位置調整コントロール</li>
+                <li>エラーハンドリング強化</li>
+            </ul>
+            <a href="ar-fixed.html" class="btn btn-success">修正版を開く</a>
+        </div>
+        
+        <div class="version-card">
+            <h2>
+                🧪 シンプルテスト版
+                <span class="status status-test">TEST</span>
+            </h2>
+            <p>基本的なA-Frameプリミティブのみを使用したテスト版</p>
+            <ul class="features">
+                <li>最小構成で動作確認</li>
+                <li>カラフルな3Dオブジェクト</li>
+                <li>アニメーション付き</li>
+                <li>デバッグ用</li>
+            </ul>
+            <a href="ar-simple.html" class="btn btn-warning">テスト版を開く</a>
+        </div>
+        
+        <div class="version-card">
+            <h2>
+                💡 オリジナル版
+                <span class="status status-stable">ORIGINAL</span>
+            </h2>
+            <p>全機能を含む高度な実装（現在問題あり）</p>
+            <ul class="features">
+                <li>WebGPU対応（実験的）</li>
+                <li>高度な位置調整機能</li>
+                <li>iOS Safari最適化</li>
+                <li>※現在、表示に問題があります</li>
+            </ul>
+            <a href="ar.html" class="btn">オリジナル版を開く</a>
+        </div>
+        
+        <div class="admin-link">
+            <h3>管理者向け</h3>
+            <p>プロジェクトの作成と管理</p>
+            <a href="admin.html" class="btn">管理画面へ</a>
+        </div>
+    </div>
+</body>
+</html>
