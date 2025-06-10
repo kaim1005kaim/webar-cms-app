@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, shrink-to-fit=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>AR Keyholder - Simple Test</title>
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.0/aframe/build/aframe-ar.js"></script>
+    <style>
+        body { 
+            margin: 0; 
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+        #status {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 1000;
+            font-size: 12px;
+        }
+        #controls {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 1000;
+        }
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            margin: 2px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div id="status">
+        🎯 Simple AR Test<br>
+        <span id="marker-status">マーカー: 未検出</span>
+    </div>
+    
+    <div id="controls">
+        <button onclick="toggleVisibility()">表示切替</button>
+        <button onclick="resetPosition()">位置リセット</button>
+    </div>
+
+    <!-- AR.js Scene -->
+    <a-scene
+        vr-mode-ui="enabled: false"
+        renderer="logarithmicDepthBuffer: true"
+        embedded
+        arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;">
+        
+        <!-- Assets -->
+        <a-assets>
+            <!-- 事前定義なし（直接エンティティで定義） -->
+        </a-assets>
+        
+        <!-- Hiroマーカー -->
+        <a-marker preset="hiro" id="hiro-marker">
+            <!-- シンプルなテストオブジェクト群 -->
+            <a-entity id="test-objects" position="0 0 0">
+                
+                <!-- 赤いボックス（ベース） -->
+                <a-box
+                    position="0 0.5 0"
+                    rotation="0 45 0"
+                    width="1"
+                    height="1"
+                    depth="1"
+                    color="#EF2D5E"
+                    shadow
+                    animation="property: rotation; to: 0 405 0; loop: true; dur: 10000">
+                </a-box>
+                
+                <!-- 青い球（上部） -->
+                <a-sphere
+                    position="0 1.25 0"
+                    radius="0.25"
+                    color="#4CC3D9"
+                    shadow>
+                </a-sphere>
+                
+                <!-- 黄色いシリンダー（下部） -->
+                <a-cylinder
+                    position="0 0 0"
+                    radius="0.75"
+                    height="0.1"
+                    color="#FFC65D"
+                    shadow>
+                </a-cylinder>
+                
+                <!-- テキスト -->
+                <a-text
+                    value="AR Test"
+                    position="0 2 0"
+                    align="center"
+                    color="#000"
+                    width="4">
+                </a-text>
+                
+            </a-entity>
+        </a-marker>
+        
+        <!-- ライト -->
+        <a-light type="ambient" color="#404040"></a-light>
+        <a-light type="directional" position="0 10 5" color="#FFF" intensity="0.5"></a-light>
+        
+        <!-- カメラ -->
+        <a-entity camera></a-entity>
+    </a-scene>
+
+    <script>
+        // マーカー検出状態の管理
+        const marker = document.querySelector('#hiro-marker');
+        const markerStatus = document.querySelector('#marker-status');
+        const testObjects = document.querySelector('#test-objects');
+        
+        marker.addEventListener('markerFound', () => {
+            console.log('Marker found!');
+            markerStatus.textContent = 'マーカー: 検出中 ✅';
+            markerStatus.style.color = '#4CC3D9';
+        });
+        
+        marker.addEventListener('markerLost', () => {
+            console.log('Marker lost!');
+            markerStatus.textContent = 'マーカー: 未検出';
+            markerStatus.style.color = '#EF2D5E';
+        });
+        
+        // 表示切替
+        function toggleVisibility() {
+            const visible = testObjects.getAttribute('visible');
+            testObjects.setAttribute('visible', !visible);
+            console.log('Visibility toggled:', !visible);
+        }
+        
+        // 位置リセット
+        function resetPosition() {
+            testObjects.setAttribute('position', '0 0 0');
+            console.log('Position reset');
+        }
+        
+        // デバッグ情報
+        console.log('Simple AR Test loaded');
+        console.log('A-Frame version:', AFRAME.version);
+        
+        // シーン読み込み完了時
+        document.querySelector('a-scene').addEventListener('loaded', () => {
+            console.log('Scene loaded successfully');
+        });
+    </script>
+</body>
+</html>
