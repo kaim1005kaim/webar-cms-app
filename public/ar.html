@@ -6,6 +6,42 @@
     <title>AR Keyholder - Visible Fix</title>
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.0/aframe/build/aframe-ar.js"></script>
+    
+    <!-- カスタムマーカーハンドラー -->
+    <script>
+        AFRAME.registerComponent('markerhandler', {
+            init: function () {
+                const marker = this.el;
+                console.log('🎯 Custom marker handler initialized');
+                
+                marker.addEventListener('markerFound', () => {
+                    console.log('🎯 Marker found - ensuring perfect center alignment');
+                    
+                    // マーカーの変換マトリックスを取得
+                    const markerObject3D = marker.object3D;
+                    
+                    // キャラクターコンテナの位置をマーカー中心に完全に合わせる
+                    const characterContainer = marker.querySelector('#character-container');
+                    if (characterContainer) {
+                        // 強制的に原点に配置
+                        characterContainer.object3D.position.set(0, 0, 0);
+                        characterContainer.object3D.rotation.set(0, 0, 0);
+                        characterContainer.object3D.scale.set(1, 1, 1);
+                        
+                        // マトリックスを更新
+                        characterContainer.object3D.updateMatrix();
+                        
+                        console.log('Character container positioned at marker center:', 
+                                  characterContainer.object3D.position);
+                    }
+                });
+                
+                marker.addEventListener('markerLost', () => {
+                    console.log('Marker lost');
+                });
+            }
+        });
+    </script>
     <style>
         body { 
             margin: 0; 
@@ -87,7 +123,7 @@
     <a-scene
         id="ar-scene"
         vr-mode-ui="enabled: false"
-        renderer="logarithmicDepthBuffer: true; colorManagement: true; antialias: true; alpha: true; sortObjects: true; physicallyCorrectLights: true;"
+        renderer="logarithmicDepthBuffer: true; colorManagement: true; antialias: true; alpha: true; sortObjects: true; physicallyCorrectLights: true; precision: highp;"
         embedded
         arjs="
             trackingMethod: best; 
@@ -104,6 +140,9 @@
             canvasHeight: 480;
             positionRatioAccuracy: 1000;
             minConfidence: 0.6;
+            labelingMode: black_region;
+            patternRatio: 0.5;
+            imageSmoothingEnabled: false;
         "
         loading-screen="enabled: false">
         
@@ -112,11 +151,12 @@
             preset="hiro" 
             id="hiro-marker"
             smooth="true"
-            smoothCount="5"
-            smoothTolerance="0.01"
-            smoothThreshold="2"
+            smoothCount="3"
+            smoothTolerance="0.005"
+            smoothThreshold="1"
             raycaster="objects: .raycastable"
-            cursor="rayOrigin: mouse">
+            cursor="rayOrigin: mouse"
+            markerhandler>
             
             <!-- キャラクターモデル表示エリア - 物理キーホルダー柄の上に表示 -->
             <a-entity id="character-container" position="0 0 0" rotation="0 0 0" scale="1 1 1">
@@ -125,21 +165,21 @@
                 <a-sphere
                     id="center-reference"
                     position="0 0 0"
-                    radius="0.02"
+                    radius="0.03"
                     color="#00ff00"
-                    material="emissive: #00ff00; emissiveIntensity: 2.0; transparent: true; opacity: 0.6;"
-                    visible="false">
+                    material="emissive: #00ff00; emissiveIntensity: 3.0; transparent: true; opacity: 0.9;"
+                    visible="true">
                 </a-sphere>
                 
                 <!-- デバッグ用テストスフィア -->
                 <a-sphere
                     id="test-sphere"
-                    position="0 1.5 0"
-                    radius="0.15"
+                    position="0 0.5 0"
+                    radius="0.1"
                     color="#ff0000"
                     material="color: #ff0000; emissive: #ff0000; emissiveIntensity: 1.0;"
                     animation="property: scale; to: 1.2 1.2 1.2; dir: alternate; loop: true; dur: 1000"
-                    visible="false">
+                    visible="true">
                 </a-sphere>
                 
                 <!-- キャラクターモデルがここに動的に追加される -->
@@ -153,7 +193,11 @@
         <a-light type="point" position="0 2 1" color="#ffffff" intensity="0.8"></a-light>
         
         <!-- カメラ -->
-        <a-entity camera></a-entity>
+        <a-entity 
+            camera
+            look-controls="enabled: false"
+            wasd-controls="enabled: false"
+            cursor="rayOrigin: mouse"></entity>
     </a-scene>
 
     <script>
@@ -214,39 +258,56 @@
         
         // デバッグ用グローバル関数
         window.ARKeyholder = {
-            version: '3.3.0-character-only',
-            forceShow: () => {
+            version: '3.4.0-perfect-center',
+            forceCenter: () => {
                 const container = document.querySelector('#character-container');
-                container.setAttribute('visible', true);
-                container.setAttribute('scale', '2 2 2');
-                console.log('Character container forced visible');
+                container.object3D.position.set(0, 0, 0);
+                container.object3D.rotation.set(0, 0, 0);
+                container.object3D.scale.set(1, 1, 1);
+                container.object3D.updateMatrix();
+                console.log('Force centered at (0,0,0)');
+                console.log('Actual position:', container.object3D.position);
             },
-            toggleTestSphere: () => {
-                const sphere = document.querySelector('#test-sphere');
-                const isVisible = sphere.getAttribute('visible') === 'true';
-                sphere.setAttribute('visible', !isVisible);
-                console.log('Test sphere visibility:', !isVisible);
-            },
-            showReference: () => {
+            showReferences: () => {
                 const ref = document.querySelector('#center-reference');
+                const test = document.querySelector('#test-sphere');
                 ref.setAttribute('visible', true);
-                console.log('Center reference point visible');
+                test.setAttribute('visible', true);
+                console.log('Reference spheres visible - Green=center(0,0,0), Red=height test(0,0.5,0)');
             },
-            centerCharacter: () => {
-                const container = document.querySelector('#character-container');
-                container.setAttribute('position', '0 0 0');
-                container.setAttribute('rotation', '0 0 0');
-                console.log('Character container centered at marker origin');
+            hideReferences: () => {
+                const ref = document.querySelector('#center-reference');
+                const test = document.querySelector('#test-sphere');
+                ref.setAttribute('visible', false);
+                test.setAttribute('visible', false);
+                console.log('Reference spheres hidden');
             },
-            adjustPosition: (x, y, z) => {
-                const container = document.querySelector('#character-container');
-                container.setAttribute('position', `${x} ${y} ${z}`);
-                console.log(`Character position adjusted to: ${x}, ${y}, ${z}`);
+            adjustCharacter: (x, y, z) => {
+                const models = document.querySelectorAll('#character-container a-gltf-model');
+                models.forEach(model => {
+                    model.object3D.position.set(x, y, z);
+                    model.object3D.updateMatrix();
+                });
+                console.log(`Character models moved to: ${x}, ${y}, ${z}`);
             },
-            getPosition: () => {
+            getMarkerMatrix: () => {
+                const marker = document.querySelector('#hiro-marker');
+                console.log('Marker matrix:', marker.object3D.matrix);
+                console.log('Marker position:', marker.object3D.position);
+                return marker.object3D.matrix;
+            },
+            debugInfo: () => {
+                const marker = document.querySelector('#hiro-marker');
                 const container = document.querySelector('#character-container');
-                console.log('Current character position:', container.getAttribute('position'));
-                return container.getAttribute('position');
+                console.log('=== DEBUG INFO ===');
+                console.log('Marker position:', marker.object3D.position);
+                console.log('Container position:', container.object3D.position);
+                console.log('Container world position:', container.object3D.getWorldPosition(new THREE.Vector3()));
+                return {
+                    marker: marker.object3D.position,
+                    container: container.object3D.position,
+                    containerWorld: container.object3D.getWorldPosition(new THREE.Vector3())
+                };
             },
             loadProject: (projectId) => {
                 const url = new URL(window.location);
