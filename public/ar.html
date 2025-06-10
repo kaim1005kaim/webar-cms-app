@@ -748,11 +748,26 @@ arjs="
                         modelWrapper.setAttribute('id', 'model-wrapper');
                         modelWrapper.setAttribute('position', '0 0 0');
                         
-                        gltfEntity.setAttribute('position', projectData.character.position ? 
+                        // 3Dプレビューで調整された位置・回転・スケールを適用
+                        const position = projectData.character.position ? 
                             `${projectData.character.position[0]} ${projectData.character.position[1]} ${projectData.character.position[2]}` : 
-                            '0 0.3 0');  // 物理キーホルダーの上に表示
-                        gltfEntity.setAttribute('scale', `${projectData.character.scale || 1} ${projectData.character.scale || 1} ${projectData.character.scale || 1}`);
-                        gltfEntity.setAttribute('rotation', '0 0 0');
+                            '0 0.3 0';  // デフォルト位置
+                        
+                        const rotation = projectData.character.rotation ? 
+                            `${projectData.character.rotation[0]} ${projectData.character.rotation[1]} ${projectData.character.rotation[2]}` : 
+                            '0 0 0';  // デフォルト回転
+                        
+                        const scale = projectData.character.scale || 1;
+                        
+                        gltfEntity.setAttribute('position', position);
+                        gltfEntity.setAttribute('scale', `${scale} ${scale} ${scale}`);
+                        gltfEntity.setAttribute('rotation', rotation);
+                        
+                        console.log('Applied 3D preview settings:', {
+                            position: position,
+                            rotation: rotation,
+                            scale: scale
+                        });
                         
                         // モデル読み込み完了イベント
                         gltfEntity.addEventListener('model-loaded', () => {

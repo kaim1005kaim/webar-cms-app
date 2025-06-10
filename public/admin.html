@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ARキーホルダー管理画面</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; }
@@ -178,10 +181,14 @@
                                 <p><small style="color: #f39c12;">⚠️ 大きなファイルはローカル保存のみ対応</small></p>
                                 <input type="file" id="glb-file" accept=".glb" style="display: none;">
                             </div>
+                            <!-- GLBファイル情報とプレビュー -->
                             <div id="glb-preview" style="display: none; margin-top: 10px;">
                                 <div style="background: #f8f9fa; padding: 10px; border-radius: 6px;">
                                     <p>✅ <span id="glb-filename"></span></p>
                                     <p><small>サイズ: <span id="glb-filesize"></span></small></p>
+                                    <button type="button" class="btn btn-primary btn-small" onclick="open3DPreview()" style="margin-top: 10px;">
+                                        🎯 3Dプレビューで位置調整
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -271,6 +278,116 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 3Dプレビューモーダル -->
+    <div id="preview-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 10000;">
+        <div style="position: relative; width: 100%; height: 100%; display: flex;">
+            <!-- 3Dビューアー -->
+            <div id="preview-3d-container" style="flex: 1; position: relative;">
+                <canvas id="preview-canvas"></canvas>
+                
+                <!-- カメラ・ビューコントロール -->
+                <div style="position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.8); color: white; padding: 15px; border-radius: 8px;">
+                    <h4 style="margin: 0 0 10px 0; color: white;">📷 ビューコントロール</h4>
+                    <button type="button" class="btn btn-small" onclick="resetCamera()" style="background: #3498db; color: white; margin: 2px;">📐 正面視点</button>
+                    <button type="button" class="btn btn-small" onclick="topView()" style="background: #3498db; color: white; margin: 2px;">⬆️ 上面視点</button>
+                    <button type="button" class="btn btn-small" onclick="sideView()" style="background: #3498db; color: white; margin: 2px;">➡️ 側面視点</button>
+                </div>
+                
+                <!-- ヘルプ -->
+                <div style="position: absolute; bottom: 20px; left: 20px; background: rgba(0,0,0,0.8); color: white; padding: 15px; border-radius: 8px; max-width: 300px;">
+                    <h4 style="margin: 0 0 10px 0; color: white;">🎯 操作方法</h4>
+                    <p style="margin: 5px 0; font-size: 12px;">• マウス左ドラッグ: 回転</p>
+                    <p style="margin: 5px 0; font-size: 12px;">• マウス右ドラッグ: パン</p>
+                    <p style="margin: 5px 0; font-size: 12px;">• ホイール: ズーム</p>
+                    <p style="margin: 5px 0; font-size: 12px;">• 青い平面がARマーカー位置</p>
+                </div>
+            </div>
+            
+            <!-- コントロールパネル -->
+            <div style="width: 350px; background: #2c3e50; color: white; padding: 20px; overflow-y: auto;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3 style="margin: 0; color: white;">🎛️ 位置調整</h3>
+                    <button type="button" onclick="close3DPreview()" style="background: #e74c3c; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">✕ 閉じる</button>
+                </div>
+                
+                <!-- 位置調整 -->
+                <div style="margin-bottom: 25px;">
+                    <h4 style="color: #ecf0f1; margin-bottom: 15px;">📍 位置 (Position)</h4>
+                    
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; color: #bdc3c7;">X軸 (左右)</label>
+                        <input type="range" id="pos-x" min="-2" max="2" step="0.01" value="0" style="width: 100%; margin-bottom: 5px;" oninput="updatePosition()">
+                        <span id="pos-x-value" style="font-size: 12px; color: #95a5a6;">0.00</span>
+                    </div>
+                    
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; color: #bdc3c7;">Y軸 (上下)</label>
+                        <input type="range" id="pos-y" min="-2" max="2" step="0.01" value="0.3" style="width: 100%; margin-bottom: 5px;" oninput="updatePosition()">
+                        <span id="pos-y-value" style="font-size: 12px; color: #95a5a6;">0.30</span>
+                    </div>
+                    
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; color: #bdc3c7;">Z軸 (前後)</label>
+                        <input type="range" id="pos-z" min="-2" max="2" step="0.01" value="0" style="width: 100%; margin-bottom: 5px;" oninput="updatePosition()">
+                        <span id="pos-z-value" style="font-size: 12px; color: #95a5a6;">0.00</span>
+                    </div>
+                </div>
+                
+                <!-- 回転調整 -->
+                <div style="margin-bottom: 25px;">
+                    <h4 style="color: #ecf0f1; margin-bottom: 15px;">🔄 回転 (Rotation)</h4>
+                    
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; color: #bdc3c7;">X軸回転</label>
+                        <input type="range" id="rot-x" min="-180" max="180" step="1" value="0" style="width: 100%; margin-bottom: 5px;" oninput="updateRotation()">
+                        <span id="rot-x-value" style="font-size: 12px; color: #95a5a6;">0°</span>
+                    </div>
+                    
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; color: #bdc3c7;">Y軸回転</label>
+                        <input type="range" id="rot-y" min="-180" max="180" step="1" value="0" style="width: 100%; margin-bottom: 5px;" oninput="updateRotation()">
+                        <span id="rot-y-value" style="font-size: 12px; color: #95a5a6;">0°</span>
+                    </div>
+                    
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; color: #bdc3c7;">Z軸回転</label>
+                        <input type="range" id="rot-z" min="-180" max="180" step="1" value="0" style="width: 100%; margin-bottom: 5px;" oninput="updateRotation()">
+                        <span id="rot-z-value" style="font-size: 12px; color: #95a5a6;">0°</span>
+                    </div>
+                </div>
+                
+                <!-- スケール調整 -->
+                <div style="margin-bottom: 25px;">
+                    <h4 style="color: #ecf0f1; margin-bottom: 15px;">📏 スケール (Scale)</h4>
+                    
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; color: #bdc3c7;">全体サイズ</label>
+                        <input type="range" id="scale" min="0.1" max="3" step="0.1" value="1" style="width: 100%; margin-bottom: 5px;" oninput="updateScale()">
+                        <span id="scale-value" style="font-size: 12px; color: #95a5a6;">1.0x</span>
+                    </div>
+                </div>
+                
+                <!-- プリセット -->
+                <div style="margin-bottom: 25px;">
+                    <h4 style="color: #ecf0f1; margin-bottom: 15px;">⚡ プリセット</h4>
+                    <button type="button" onclick="applyPreset('center')" class="btn btn-small" style="background: #27ae60; color: white; margin: 5px; width: calc(50% - 10px);">🎯 センター</button>
+                    <button type="button" onclick="applyPreset('elevated')" class="btn btn-small" style="background: #f39c12; color: white; margin: 5px; width: calc(50% - 10px);">⬆️ 上昇</button>
+                    <button type="button" onclick="applyPreset('forward')" class="btn btn-small" style="background: #3498db; color: white; margin: 5px; width: calc(50% - 10px);">➡️ 前進</button>
+                    <button type="button" onclick="applyPreset('reset')" class="btn btn-small" style="background: #95a5a6; color: white; margin: 5px; width: calc(50% - 10px);">🔄 リセット</button>
+                </div>
+                
+                <!-- 現在の値表示 -->
+                <div style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 6px; margin-bottom: 20px;">
+                    <h4 style="color: #ecf0f1; margin-bottom: 10px;">📊 現在の設定</h4>
+                    <div id="current-values" style="font-family: monospace; font-size: 11px; color: #95a5a6;"></div>
+                </div>
+                
+                <!-- 保存 -->
+                <button type="button" onclick="savePositionSettings()" class="btn btn-success" style="width: 100%; padding: 12px; font-size: 16px;">💾 この設定を保存</button>
             </div>
         </div>
     </div>
@@ -544,8 +661,17 @@
                     },
                     character: {
                         modelUrl: formData.get('characterModel') || '',
-                        scale: parseFloat(formData.get('scale')),
-                        position: [0, 0.3, 0],  // 物理キーホルダーの上に配置
+                        scale: window.savedPositionSettings ? window.savedPositionSettings.scale : parseFloat(formData.get('scale')),
+                        position: window.savedPositionSettings ? [
+                            window.savedPositionSettings.position.x,
+                            window.savedPositionSettings.position.y,
+                            window.savedPositionSettings.position.z
+                        ] : [0, 0.3, 0],  // 3Dプレビューで調整された位置または物理キーホルダーの上に配置
+                        rotation: window.savedPositionSettings ? [
+                            window.savedPositionSettings.rotation.x,
+                            window.savedPositionSettings.rotation.y,
+                            window.savedPositionSettings.rotation.z
+                        ] : [0, 0, 0],
                         animations: ['rotation']
                     },
                     marker: {
@@ -1149,6 +1275,308 @@
         if (!localStorage.getItem('ar-total-views')) {
             localStorage.setItem('ar-total-views', '0');
         }
+        
+        // 3Dプレビューシステム
+        let previewScene, previewCamera, previewRenderer, previewControls;
+        let previewModel, markerPlane;
+        let currentGLBData = null;
+        let positionSettings = {
+            position: { x: 0, y: 0.3, z: 0 },
+            rotation: { x: 0, y: 0, z: 0 },
+            scale: 1
+        };
+        
+        function init3DPreview() {
+            const canvas = document.getElementById('preview-canvas');
+            const container = document.getElementById('preview-3d-container');
+            
+            // Scene setup
+            previewScene = new THREE.Scene();
+            previewScene.background = new THREE.Color(0x1a1a1a);
+            
+            // Camera setup
+            previewCamera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+            previewCamera.position.set(2, 2, 2);
+            
+            // Renderer setup
+            previewRenderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+            previewRenderer.setSize(container.clientWidth, container.clientHeight);
+            previewRenderer.shadowMap.enabled = true;
+            previewRenderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            
+            // Controls
+            previewControls = new THREE.OrbitControls(previewCamera, canvas);
+            previewControls.enableDamping = true;
+            previewControls.dampingFactor = 0.05;
+            
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+            previewScene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(5, 5, 5);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            previewScene.add(directionalLight);
+            
+            // マーカー平面の作成（Hiroマーカーのサイズに合わせて）
+            const markerGeometry = new THREE.PlaneGeometry(2, 2);
+            const markerMaterial = new THREE.MeshLambertMaterial({ 
+                color: 0x4a90e2, 
+                transparent: true, 
+                opacity: 0.3,
+                side: THREE.DoubleSide
+            });
+            markerPlane = new THREE.Mesh(markerGeometry, markerMaterial);
+            markerPlane.rotation.x = -Math.PI / 2; // 水平に配置
+            markerPlane.receiveShadow = true;
+            previewScene.add(markerPlane);
+            
+            // マーカー境界線
+            const edges = new THREE.EdgesGeometry(markerGeometry);
+            const lineMaterial = new THREE.LineBasicMaterial({ color: 0x4a90e2, linewidth: 2 });
+            const markerBorder = new THREE.LineSegments(edges, lineMaterial);
+            markerBorder.rotation.x = -Math.PI / 2;
+            markerBorder.position.y = 0.01;
+            previewScene.add(markerBorder);
+            
+            // 座標軸表示
+            const axesHelper = new THREE.AxesHelper(1);
+            previewScene.add(axesHelper);
+            
+            // グリッド表示
+            const gridHelper = new THREE.GridHelper(4, 8, 0x444444, 0x222222);
+            previewScene.add(gridHelper);
+            
+            animate();
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            if (previewControls) previewControls.update();
+            if (previewRenderer && previewScene && previewCamera) {
+                previewRenderer.render(previewScene, previewCamera);
+            }
+        }
+        
+        function open3DPreview() {
+            if (!currentGLBData) {
+                alert('GLBファイルが読み込まれていません');
+                return;
+            }
+            
+            document.getElementById('preview-modal').style.display = 'block';
+            
+            // 3Dプレビューを初期化
+            setTimeout(() => {
+                init3DPreview();
+                load3DModel();
+            }, 100);
+        }
+        
+        function close3DPreview() {
+            document.getElementById('preview-modal').style.display = 'none';
+            if (previewRenderer) {
+                previewRenderer.dispose();
+            }
+        }
+        
+        function load3DModel() {
+            if (!currentGLBData) return;
+            
+            const loader = new THREE.GLTFLoader();
+            
+            // Base64データをBlobに変換
+            const byteCharacters = atob(currentGLBData.split(',')[1]);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray]);
+            const url = URL.createObjectURL(blob);
+            
+            loader.load(url, (gltf) => {
+                if (previewModel) {
+                    previewScene.remove(previewModel);
+                }
+                
+                previewModel = gltf.scene;
+                previewModel.castShadow = true;
+                previewModel.receiveShadow = true;
+                
+                // モデルの全子オブジェクトに影を設定
+                previewModel.traverse((child) => {
+                    if (child.isMesh) {
+                        child.castShadow = true;
+                        child.receiveShadow = true;
+                    }
+                });
+                
+                previewScene.add(previewModel);
+                updateModelTransform();
+                updateCurrentValues();
+                
+                URL.revokeObjectURL(url);
+            }, undefined, (error) => {
+                console.error('3Dモデル読み込みエラー:', error);
+                alert('3Dモデルの読み込みに失敗しました');
+            });
+        }
+        
+        function updatePosition() {
+            positionSettings.position.x = parseFloat(document.getElementById('pos-x').value);
+            positionSettings.position.y = parseFloat(document.getElementById('pos-y').value);
+            positionSettings.position.z = parseFloat(document.getElementById('pos-z').value);
+            
+            document.getElementById('pos-x-value').textContent = positionSettings.position.x.toFixed(2);
+            document.getElementById('pos-y-value').textContent = positionSettings.position.y.toFixed(2);
+            document.getElementById('pos-z-value').textContent = positionSettings.position.z.toFixed(2);
+            
+            updateModelTransform();
+            updateCurrentValues();
+        }
+        
+        function updateRotation() {
+            positionSettings.rotation.x = parseFloat(document.getElementById('rot-x').value);
+            positionSettings.rotation.y = parseFloat(document.getElementById('rot-y').value);
+            positionSettings.rotation.z = parseFloat(document.getElementById('rot-z').value);
+            
+            document.getElementById('rot-x-value').textContent = positionSettings.rotation.x + '°';
+            document.getElementById('rot-y-value').textContent = positionSettings.rotation.y + '°';
+            document.getElementById('rot-z-value').textContent = positionSettings.rotation.z + '°';
+            
+            updateModelTransform();
+            updateCurrentValues();
+        }
+        
+        function updateScale() {
+            positionSettings.scale = parseFloat(document.getElementById('scale').value);
+            document.getElementById('scale-value').textContent = positionSettings.scale.toFixed(1) + 'x';
+            
+            updateModelTransform();
+            updateCurrentValues();
+        }
+        
+        function updateModelTransform() {
+            if (!previewModel) return;
+            
+            previewModel.position.set(
+                positionSettings.position.x,
+                positionSettings.position.y,
+                positionSettings.position.z
+            );
+            
+            previewModel.rotation.set(
+                THREE.MathUtils.degToRad(positionSettings.rotation.x),
+                THREE.MathUtils.degToRad(positionSettings.rotation.y),
+                THREE.MathUtils.degToRad(positionSettings.rotation.z)
+            );
+            
+            previewModel.scale.set(
+                positionSettings.scale,
+                positionSettings.scale,
+                positionSettings.scale
+            );
+        }
+        
+        function updateCurrentValues() {
+            const display = document.getElementById('current-values');
+            if (display) {
+                display.innerHTML = `
+                    Position: ${positionSettings.position.x.toFixed(2)}, ${positionSettings.position.y.toFixed(2)}, ${positionSettings.position.z.toFixed(2)}<br>
+                    Rotation: ${positionSettings.rotation.x}°, ${positionSettings.rotation.y}°, ${positionSettings.rotation.z}°<br>
+                    Scale: ${positionSettings.scale.toFixed(1)}x
+                `;
+            }
+        }
+        
+        function applyPreset(type) {
+            switch(type) {
+                case 'center':
+                    positionSettings = { position: { x: 0, y: 0.3, z: 0 }, rotation: { x: 0, y: 0, z: 0 }, scale: 1 };
+                    break;
+                case 'elevated':
+                    positionSettings = { position: { x: 0, y: 0.8, z: 0 }, rotation: { x: 0, y: 0, z: 0 }, scale: 1 };
+                    break;
+                case 'forward':
+                    positionSettings = { position: { x: 0, y: 0.3, z: 0.5 }, rotation: { x: 0, y: 0, z: 0 }, scale: 1 };
+                    break;
+                case 'reset':
+                    positionSettings = { position: { x: 0, y: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0 }, scale: 1 };
+                    break;
+            }
+            
+            updateControlsFromSettings();
+            updateModelTransform();
+            updateCurrentValues();
+        }
+        
+        function updateControlsFromSettings() {
+            document.getElementById('pos-x').value = positionSettings.position.x;
+            document.getElementById('pos-y').value = positionSettings.position.y;
+            document.getElementById('pos-z').value = positionSettings.position.z;
+            document.getElementById('rot-x').value = positionSettings.rotation.x;
+            document.getElementById('rot-y').value = positionSettings.rotation.y;
+            document.getElementById('rot-z').value = positionSettings.rotation.z;
+            document.getElementById('scale').value = positionSettings.scale;
+            
+            document.getElementById('pos-x-value').textContent = positionSettings.position.x.toFixed(2);
+            document.getElementById('pos-y-value').textContent = positionSettings.position.y.toFixed(2);
+            document.getElementById('pos-z-value').textContent = positionSettings.position.z.toFixed(2);
+            document.getElementById('rot-x-value').textContent = positionSettings.rotation.x + '°';
+            document.getElementById('rot-y-value').textContent = positionSettings.rotation.y + '°';
+            document.getElementById('rot-z-value').textContent = positionSettings.rotation.z + '°';
+            document.getElementById('scale-value').textContent = positionSettings.scale.toFixed(1) + 'x';
+        }
+        
+        function resetCamera() {
+            if (previewCamera && previewControls) {
+                previewCamera.position.set(2, 2, 2);
+                previewControls.target.set(0, 0, 0);
+                previewControls.update();
+            }
+        }
+        
+        function topView() {
+            if (previewCamera && previewControls) {
+                previewCamera.position.set(0, 4, 0);
+                previewControls.target.set(0, 0, 0);
+                previewControls.update();
+            }
+        }
+        
+        function sideView() {
+            if (previewCamera && previewControls) {
+                previewCamera.position.set(4, 1, 0);
+                previewControls.target.set(0, 0, 0);
+                previewControls.update();
+            }
+        }
+        
+        function savePositionSettings() {
+            // 位置設定をグローバル変数に保存
+            window.savedPositionSettings = JSON.parse(JSON.stringify(positionSettings));
+            
+            showNotification('位置設定を保存しました！プロジェクト作成時に自動適用されます。', 'success');
+            console.log('Saved position settings:', window.savedPositionSettings);
+            
+            // モーダルを閉じる
+            close3DPreview();
+        }
+        
+        // ウィンドウリサイズ対応
+        window.addEventListener('resize', () => {
+            if (previewRenderer && previewCamera) {
+                const container = document.getElementById('preview-3d-container');
+                if (container && container.clientWidth > 0) {
+                    previewCamera.aspect = container.clientWidth / container.clientHeight;
+                    previewCamera.updateProjectionMatrix();
+                    previewRenderer.setSize(container.clientWidth, container.clientHeight);
+                }
+            }
+        });
         
         // 初期読み込み
         loadProjects();
