@@ -289,44 +289,6 @@
             'Prefer': 'return=representation'
         };
 
-        // プロジェクト一覧読み込み（緊急フォールバック版）
-        async function loadProjects() {
-            console.log('Loading projects...');
-            
-            // まずローカルストレージから読み込み
-            const localProjects = JSON.parse(localStorage.getItem('ar-projects') || '[]');
-            
-            try {
-                console.log('Attempting Supabase connection...');
-                const response = await fetch(`${SUPABASE_URL}/rest/v1/projects?select=*`, {
-                    method: 'GET',
-                    headers: SUPABASE_HEADERS
-                });
-                
-                if (response.ok) {
-                    const supabaseProjects = await response.json();
-                    console.log('Projects loaded from Supabase:', supabaseProjects);
-                    
-                    // Supabaseのデータをローカル形式に変換
-                    const convertedProjects = supabaseProjects.map(p => ({
-                        id: p.id,
-                        name: p.title,
-                        metadata: { description: p.description },
-                        marker: { imageUrl: p.image_url },
-                        created_at: p.created_at
-                    }));
-                    
-                    renderProjects(convertedProjects);
-                    showNotification('Supabaseからデータを読み込みました', 'success');
-                } else {
-                    throw new Error(`Supabase API error: ${response.status}`);
-                }
-            } catch (error) {
-                console.warn('Supabase接続失敗、ローカルデータを使用:', error);
-                renderProjects(localProjects);
-                showNotification('ローカルデータを表示中（Supabase接続エラー）', 'warning');
-            }
-        }
         
         async function updateStats() {
             const stats = {
@@ -930,32 +892,48 @@
             }
         }
         
-        // API + ローカルストレージ版loadProjects
+        // Supabase + ローカルストレージ版loadProjects
         async function loadProjects() {
+            console.log('Loading projects...');
+            
+            // まずローカルストレージから読み込み
+            const localProjects = JSON.parse(localStorage.getItem('ar-projects') || '[]');
+            
             try {
-                // まずAPIから取得を試行
-                const response = await fetch('/api/projects');
+                console.log('Attempting Supabase connection...');
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/projects?select=*`, {
+                    method: 'GET',
+                    headers: SUPABASE_HEADERS
+                });
+                
                 if (response.ok) {
-                    const data = await response.json();
-                    const projects = data.projects || [];
-                    renderProjects(projects);
+                    const supabaseProjects = await response.json();
+                    console.log('Raw Supabase response:', supabaseProjects);
+                    
+                    // Supabaseのデータをローカル形式に変換
+                    const convertedProjects = supabaseProjects.map(p => ({
+                        id: p.id,
+                        name: p.title,
+                        metadata: { description: p.description },
+                        marker: { imageUrl: p.image_url },
+                        created_at: p.created_at
+                    }));
+                    
+                    console.log('Converted projects:', convertedProjects);
+                    renderProjects(convertedProjects);
                     updateStats();
-                    console.log('プロジェクトをAPIから読み込みました:', projects.length, '個');
+                    showNotification(`Supabaseから${convertedProjects.length}個のプロジェクトを読み込みました`, 'success');
                 } else {
-                    throw new Error('API response error');
+                    throw new Error(`Supabase API error: ${response.status}`);
                 }
-            } catch (apiError) {
-                console.warn('API読み込み失敗、ローカルストレージから読み込み:', apiError);
-                // フォールバック: ローカルストレージから読み込み
-                try {
-                    const projects = JSON.parse(localStorage.getItem('ar-projects') || '[]');
-                    renderProjects(projects);
-                    updateStats();
-                    console.log('プロジェクトをローカルストレージから読み込みました:', projects.length, '個');
-                } catch (localError) {
-                    console.error('プロジェクト読み込みエラー:', localError);
-                    showNotification('プロジェクトの読み込みに失敗しました', 'error');
-                    renderProjects([]); // 空のリストを表示
+            } catch (error) {
+                console.warn('Supabase接続失敗、ローカルデータを使用:', error);
+                renderProjects(localProjects);
+                updateStats();
+                if (localProjects.length > 0) {
+                    showNotification(`ローカルから${localProjects.length}個のプロジェクトを表示中`, 'warning');
+                } else {
+                    showNotification('Supabase接続エラー（プロジェクトなし）', 'warning');
                 }
             }
         }
