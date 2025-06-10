@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>AR Keyholder - Visible Fix</title>
+    <title>AR Keyholder - iOS Safari Optimized</title>
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.0/aframe/build/aframe-ar.js"></script>
     
@@ -14,11 +14,18 @@
                 this.marker = this.el;
                 this.characterContainer = null;
                 this.isMarkerVisible = false;
-                this.manualOffset = {x: 0, y: 0, z: 0}; // 手動調整値を保存
-                console.log('🎯 Advanced marker handler initialized with tick-based sync');
+                this.manualOffset = {x: 0, y: 0, z: 0};
+                
+                // iOS Safari detection and correction
+                this.isIOSSafari = this.detectIOSSafari();
+                this.correction = this.calculateIOSCorrection();
+                
+                console.log('🎯 Advanced marker handler initialized with iOS Safari correction');
+                console.log('iOS Safari detected:', this.isIOSSafari);
+                console.log('Correction values:', this.correction);
                 
                 this.marker.addEventListener('markerFound', () => {
-                    console.log('🎯 Marker found - starting continuous center alignment');
+                    console.log('🎯 Marker found - applying iOS Safari corrections');
                     this.isMarkerVisible = true;
                     
                     if (!this.characterContainer) {
@@ -32,6 +39,58 @@
                 });
             },
             
+            detectIOSSafari: function() {
+                const ua = navigator.userAgent;
+                const isIOS = /iPad|iPhone|iPod/.test(ua);
+                const isSafari = /Safari/.test(ua) && !/Chrome|CriOS|FxiOS/.test(ua);
+                return isIOS && isSafari;
+            },
+            
+            calculateIOSCorrection: function() {
+                if (!this.isIOSSafari) {
+                    return { x: 0, y: 0, z: 0, scale: 1 };
+                }
+                
+                const viewport = {
+                    width: window.innerWidth,
+                    height: window.innerHeight
+                };
+                
+                // iOS Safari specific corrections based on Claude's analysis
+                const isPortrait = viewport.height > viewport.width;
+                const aspectRatio = viewport.width / viewport.height;
+                
+                // Dynamic correction based on actual viewport
+                let correction = {
+                    x: 0,
+                    y: 0,
+                    z: 0,
+                    scale: 1
+                };
+                
+                if (isPortrait) {
+                    // Portrait mode corrections (393x480 case)
+                    const expectedAspect = 4/3; // AR.js expects 4:3
+                    const actualAspect = aspectRatio;
+                    const aspectCorrection = (expectedAspect - actualAspect) * 0.5;
+                    
+                    correction.x = aspectCorrection * 0.3; // Right shift compensation
+                    correction.y = 0;
+                    correction.z = 0;
+                    
+                    console.log('iOS Portrait correction applied:', correction);
+                } else {
+                    // Landscape mode corrections
+                    correction.x = 0.05;
+                    correction.y = 0;
+                    correction.z = 0;
+                    
+                    console.log('iOS Landscape correction applied:', correction);
+                }
+                
+                return correction;
+            },
+            
             tick: function (time, timeDelta) {
                 // パフォーマンス向上のため、フレーム間隔をチェック
                 if (!this.lastTick || timeDelta > 16) { // 約60FPS制限
@@ -39,18 +98,44 @@
                     
                     // マーカーが検出されている間のみ同期
                     if (this.isMarkerVisible && this.characterContainer) {
-                        // マーカーの座標系に合わせつつ、手動オフセットを適用
-                        this.characterContainer.object3D.position.set(
-                            this.manualOffset.x, 
-                            this.manualOffset.y, 
-                            this.manualOffset.z
-                        );
+                        // iOS Safari補正値を適用
+                        const finalX = this.manualOffset.x + (this.isIOSSafari ? this.correction.x : 0);
+                        const finalY = this.manualOffset.y + (this.isIOSSafari ? this.correction.y : 0);
+                        const finalZ = this.manualOffset.z + (this.isIOSSafari ? this.correction.z : 0);
+                        
+                        this.characterContainer.object3D.position.set(finalX, finalY, finalZ);
                         this.characterContainer.object3D.rotation.set(0, 0, 0);
-                        this.characterContainer.object3D.scale.set(1, 1, 1);
+                        this.characterContainer.object3D.scale.set(
+                            this.correction.scale, 
+                            this.correction.scale, 
+                            this.correction.scale
+                        );
                         
                         // ワールド行列も強制更新
                         this.characterContainer.object3D.updateMatrixWorld(true);
+                        
+                        // iOS Safari用の追加補正 - Three.js レベルでの行列修正
+                        if (this.isIOSSafari && this.characterContainer.object3D.parent) {
+                            this.applyThreeJSCorrection();
+                        }
                     }
+                }
+            },
+            
+            applyThreeJSCorrection: function() {
+                // Three.js レベルでの座標系補正
+                const container = this.characterContainer.object3D;
+                const marker = this.marker.object3D;
+                
+                // iOS Safari用の追加行列変換
+                if (marker.matrixWorld) {
+                    const correctionMatrix = new THREE.Matrix4();
+                    correctionMatrix.makeTranslation(this.correction.x, this.correction.y, this.correction.z);
+                    
+                    // 元の変換行列に補正を適用
+                    const originalMatrix = container.matrix.clone();
+                    container.matrix.multiplyMatrices(correctionMatrix, originalMatrix);
+                    container.matrixWorldNeedsUpdate = true;
                 }
             },
             
@@ -58,6 +143,19 @@
                 this.manualOffset.x = x;
                 this.manualOffset.y = y;
                 this.manualOffset.z = z;
+                console.log('Manual offset set:', this.manualOffset);
+                console.log('iOS correction:', this.correction);
+                console.log('Final position will be:', {
+                    x: x + (this.isIOSSafari ? this.correction.x : 0),
+                    y: y + (this.isIOSSafari ? this.correction.y : 0),
+                    z: z + (this.isIOSSafari ? this.correction.z : 0)
+                });
+            },
+            
+            recalculateCorrection: function() {
+                // 画面回転やリサイズ時の補正値再計算
+                this.correction = this.calculateIOSCorrection();
+                console.log('iOS correction recalculated:', this.correction);
             }
         });
     </script>
@@ -144,19 +242,19 @@
         vr-mode-ui="enabled: false"
         renderer="logarithmicDepthBuffer: true; colorManagement: true; antialias: true; alpha: true; sortObjects: true; physicallyCorrectLights: true;"
         embedded
-        arjs="
+arjs="
             trackingMethod: best; 
             sourceType: webcam; 
             debugUIEnabled: false; 
             detectionMode: mono_and_matrix; 
             matrixCodeType: 3x3;
-            sourceWidth: 640;
-            sourceHeight: 480;
-            displayWidth: 640;
-            displayHeight: 480;
-            maxDetectionRate: 60;
-            canvasWidth: 640;
-            canvasHeight: 480;
+            sourceWidth: 960;
+            sourceHeight: 640;
+            displayWidth: 960;
+            displayHeight: 640;
+            maxDetectionRate: 30;
+            canvasWidth: 960;
+            canvasHeight: 640;
         "
         loading-screen="enabled: false">
         
@@ -222,12 +320,24 @@
         
         // ARシーン初期化
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('🎯 AR Keyholder - Visibility Fix Version');
+            console.log('🎯 AR Keyholder - iOS Safari Optimized Version');
             
             const arScene = document.querySelector('a-scene');
             const marker = document.querySelector('#hiro-marker');
             const characterContainer = document.querySelector('#character-container');
             const testSphere = document.querySelector('#test-sphere');
+            
+            // iOS Safari特化初期化
+            if (marker && marker.components.markerhandler) {
+                const handler = marker.components.markerhandler;
+                if (handler.isIOSSafari) {
+                    console.log('📱 iOS Safari detected - applying optimizations');
+                    
+                    // iOS Safari用のカメラ設定の最適化
+                    arScene.setAttribute('arjs', arScene.getAttribute('arjs') + 
+                        '; cameraParametersUrl: data/camera_para-iPhone.dat;');
+                }
+            }
             
             // マーカー検出イベント
             marker.addEventListener('markerFound', () => {
@@ -259,14 +369,46 @@
             
             // AR.js初期化完了イベント
             arScene.addEventListener('arjs-video-loaded', () => {
-                console.log('🚀 AR.js video loaded - Ready for BIG objects!');
+                console.log('🚀 AR.js video loaded - iOS Safari optimized!');
                 updateStatus(markerStatus, '検出待機中', 'warning');
+                
+                // iOS Safari用の追加最適化
+                const marker = document.querySelector('#hiro-marker');
+                if (marker && marker.components.markerhandler && marker.components.markerhandler.isIOSSafari) {
+                    // 初期補正を適用
+                    setTimeout(() => {
+                        ARKeyholder.quickFix();
+                        console.log('📱 iOS Safari initial correction applied');
+                    }, 1000);
+                }
+            });
+            
+            // 画面回転イベントで補正値を再計算
+            window.addEventListener('orientationchange', () => {
+                setTimeout(() => {
+                    const marker = document.querySelector('#hiro-marker');
+                    if (marker && marker.components.markerhandler) {
+                        marker.components.markerhandler.recalculateCorrection();
+                        console.log('🔄 Screen orientation changed - iOS correction recalculated');
+                    }
+                }, 500);
+            });
+            
+            // リサイズイベントで補正値を再計算
+            window.addEventListener('resize', () => {
+                setTimeout(() => {
+                    const marker = document.querySelector('#hiro-marker');
+                    if (marker && marker.components.markerhandler) {
+                        marker.components.markerhandler.recalculateCorrection();
+                        console.log('📜 Window resized - iOS correction recalculated');
+                    }
+                }, 300);
             });
         });
         
         // デバッグ用グローバル関数
         window.ARKeyholder = {
-            version: '3.5.0-stability-fix',
+            version: '3.6.0-ios-safari-fix',
             forceCenter: () => {
                 const container = document.querySelector('#character-container');
                 container.object3D.position.set(0, 0, 0);
@@ -381,10 +523,58 @@
                 location.reload();
             },
             quickFix: () => {
-                console.log('Applying common offset fixes...');
-                // 左側にズレている場合の一般的な修正値
-                ARKeyholder.adjustCharacter(0.1, 0, 0);  // 右に少し移動
-                console.log('Applied right offset (+0.1). Try: ARKeyholder.adjustCharacter(x,y,z) for custom values');
+                console.log('Applying iOS Safari specific fixes...');
+                const marker = document.querySelector('#hiro-marker');
+                if (marker && marker.components.markerhandler) {
+                    const handler = marker.components.markerhandler;
+                    if (handler.isIOSSafari) {
+                        // iOS Safari用の自動補正
+                        const correction = handler.correction;
+                        ARKeyholder.adjustCharacter(correction.x, correction.y, correction.z);
+                        console.log('Applied iOS Safari correction:', correction);
+                    } else {
+                        // 一般的な修正値
+                        ARKeyholder.adjustCharacter(0.1, 0, 0);
+                        console.log('Applied standard right offset (+0.1)');
+                    }
+                } else {
+                    ARKeyholder.adjustCharacter(0.1, 0, 0);
+                }
+            },
+            
+            iosDebugInfo: () => {
+                const marker = document.querySelector('#hiro-marker');
+                if (marker && marker.components.markerhandler) {
+                    const handler = marker.components.markerhandler;
+                    console.log('=== iOS SAFARI DEBUG INFO ===');
+                    console.log('iOS Safari detected:', handler.isIOSSafari);
+                    console.log('Viewport:', { width: window.innerWidth, height: window.innerHeight });
+                    console.log('User Agent:', navigator.userAgent);
+                    console.log('iOS correction:', handler.correction);
+                    console.log('Manual offset:', handler.manualOffset);
+                    
+                    const aspectRatio = window.innerWidth / window.innerHeight;
+                    console.log('Aspect ratio:', aspectRatio);
+                    console.log('Is portrait:', window.innerHeight > window.innerWidth);
+                    
+                    return {
+                        isIOSSafari: handler.isIOSSafari,
+                        viewport: { width: window.innerWidth, height: window.innerHeight },
+                        aspectRatio: aspectRatio,
+                        isPortrait: window.innerHeight > window.innerWidth,
+                        correction: handler.correction,
+                        manualOffset: handler.manualOffset
+                    };
+                }
+                return null;
+            },
+            
+            recalibrateIOS: () => {
+                const marker = document.querySelector('#hiro-marker');
+                if (marker && marker.components.markerhandler) {
+                    marker.components.markerhandler.recalculateCorrection();
+                    console.log('iOS Safari correction recalibrated');
+                }
             },
             centerTest: () => {
                 console.log('Testing center position with visible markers...');
@@ -397,6 +587,27 @@
                 const url = new URL(window.location);
                 url.searchParams.set('project', projectId);
                 window.location.href = url.toString();
+            },
+            
+            autoCenter: () => {
+                console.log('Auto-centering for current device...');
+                const marker = document.querySelector('#hiro-marker');
+                if (marker && marker.components.markerhandler) {
+                    const handler = marker.components.markerhandler;
+                    if (handler.isIOSSafari) {
+                        // iOS Safari用の自動中央寄せ
+                        ARKeyholder.quickFix();
+                        ARKeyholder.showReferences();
+                        console.log('📱 iOS Safari auto-centering applied');
+                    } else {
+                        // 他のブラウザ用
+                        ARKeyholder.forceCenter();
+                        ARKeyholder.showReferences();
+                        console.log('💻 Standard auto-centering applied');
+                    }
+                } else {
+                    ARKeyholder.forceCenter();
+                }
             }
         };
         
@@ -574,10 +785,28 @@
             console.log('AR view count incremented:', currentViews + 1);
         }
         
-        // ページ読み込み時にプロジェクトデータを読み込み
+        // ページ読み込み時の初期化
         document.addEventListener('DOMContentLoaded', () => {
             loadProjectData();
             incrementViewCount();
+            
+            // iOS Safari検出ログ
+            const ua = navigator.userAgent;
+            const isIOS = /iPad|iPhone|iPod/.test(ua);
+            const isSafari = /Safari/.test(ua) && !/Chrome|CriOS|FxiOS/.test(ua);
+            
+            if (isIOS && isSafari) {
+                console.log('📱 iOS Safari detected - enhanced positioning enabled');
+                console.log('Device info:', {
+                    userAgent: ua,
+                    viewport: { width: window.innerWidth, height: window.innerHeight },
+                    devicePixelRatio: window.devicePixelRatio
+                });
+                
+                // iOS Safari用のスタイル調整
+                document.body.style.webkitUserSelect = 'none';
+                document.body.style.webkitTouchCallout = 'none';
+            }
         });
     </script>
 </body>
