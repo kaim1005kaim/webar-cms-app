@@ -396,7 +396,7 @@
             <button class="position-btn" onclick="ensureObjectVisibility()" style="background: rgba(46, 204, 113, 0.8); font-size: 9px;">表示</button>
         </div>
         <div style="margin: 3px 0; font-size: 9px;">
-            <button class="position-btn" onclick="setPresetPosition('center')" style="font-size: 9px; padding: 4px 6px;">中央</button>
+            <button class="position-btn" onclick="centerOnMarker()" style="font-size: 9px; padding: 4px 6px; background: rgba(39, 174, 96, 0.8);">中央配置</button>
             <button class="position-btn" onclick="setPresetPosition('elevated')" style="font-size: 9px; padding: 4px 6px;">上</button>
         </div>
         <div id="debug-info" style="font-size: 8px; color: #bdc3c7; margin-top: 2px;">Pos: (0.000, 0.000, 0.000)</div>
@@ -425,13 +425,6 @@
             debugUIEnabled: false; 
             detectionMode: mono_and_matrix; 
             matrixCodeType: 3x3;
-            sourceWidth: 1280;
-            sourceHeight: 720;
-            displayWidth: 1280;
-            displayHeight: 720;
-            maxDetectionRate: 30;
-            canvasWidth: 1280;
-            canvasHeight: 720;
         "
         loading-screen="enabled: false">
         
@@ -492,20 +485,21 @@
                     animation="property: rotation; to: 90 360 0; loop: true; dur: 8000">
                 </a-torus>
                 
-                <!-- ベース（影用） -->
+                <!-- ベース（影用・マスキング対応） -->
                 <a-cylinder
-                    position="0 0.02 0"
-                    radius="0.3"
-                    height="0.03"
+                    position="0 0.01 0"
+                    radius="0.25"
+                    height="0.01"
                     color="#34495e"
-                    opacity="0.5">
+                    material="opacity: 0.3; transparent: true; depthWrite: false;"
+                    visible="true">
                 </a-cylinder>
             </a-entity>
         </a-marker>
         
         <!-- ライティング -->
-        <a-light type="ambient" color="#ffffff" intensity="0.6"></a-light>
-        <a-light type="directional" position="0 1 0.5" color="#ffffff" intensity="0.8"></a-light>
+        <a-light type="ambient" color="#ffffff" intensity="0.7"></a-light>
+        <a-light type="directional" position="0 1 0.5" color="#ffffff" intensity="0.5"></a-light>
         
         <!-- カメラ -->
         <a-entity camera></a-entity>
@@ -564,6 +558,16 @@
             currentPosition = { x: 0, y: 0, z: 0 }; // 完全な中央
             updateObjectPosition();
             console.log('位置をリセットしました');
+        }
+        
+        // マーカー中央に強制配置
+        function centerOnMarker() {
+            currentPosition = { x: 0, y: 0, z: 0 };
+            const keyholderObject = document.getElementById('keyholder-object');
+            if (keyholderObject) {
+                keyholderObject.setAttribute('position', '0 0 0');
+                console.log('オブジェクトをマーカー中央に配置');
+            }
         }
         
         // 精密調整機能
@@ -786,6 +790,9 @@
                 
                 // 全ての子要素も強制的に表示
                 forceObjectVisibility();
+                
+                // マーカー中央に配置
+                centerOnMarker();
                 
                 // WebGPUレンダリングを通知
                 if (useWebGPU && webARApp) {
