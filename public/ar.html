@@ -102,6 +102,8 @@
             maxDetectionRate: 60;
             canvasWidth: 640;
             canvasHeight: 480;
+            positionRatioAccuracy: 1000;
+            minConfidence: 0.6;
         "
         loading-screen="enabled: false">
         
@@ -110,26 +112,26 @@
             preset="hiro" 
             id="hiro-marker"
             smooth="true"
-            smoothCount="10"
+            smoothCount="5"
             smoothTolerance="0.01"
-            smoothThreshold="5"
+            smoothThreshold="2"
             raycaster="objects: .raycastable"
             cursor="rayOrigin: mouse">
             
-            <!-- 3Dキーホルダーオブジェクト -->
-            <a-entity id="keyholder-object" position="0 0 0" scale="1 1 1">
+            <!-- 3Dキーホルダーオブジェクト - 完全中央配置 -->
+            <a-entity id="keyholder-object" position="0 0 0" rotation="0 0 0" scale="1 1 1">
                 
-                <!-- 基準点（緑の球） -->
+                <!-- 基準点（緑の球） - マーカー中心 -->
                 <a-sphere
-                    position="0 0.1 0"
-                    radius="0.05"
+                    position="0 0 0"
+                    radius="0.03"
                     color="#00ff00"
-                    material="emissive: #00ff00; emissiveIntensity: 1.0;">
+                    material="emissive: #00ff00; emissiveIntensity: 2.0; transparent: true; opacity: 0.8;">
                 </a-sphere>
                 
-                <!-- メインキーホルダーボディ -->
+                <!-- メインキーホルダーボディ - 中央から上に配置 -->
                 <a-box
-                    position="0 0.5 0"
+                    position="0 0.3 0"
                     width="0.4"
                     height="0.5"
                     depth="0.15"
@@ -165,9 +167,9 @@
                     <a-sphere position="0.25 0 0" radius="0.05" color="#ffeb3b"></a-sphere>
                 </a-box>
                 
-                <!-- キーリング -->
+                <!-- キーリング - 中央基準で調整 -->
                 <a-torus
-                    position="0 1.0 0"
+                    position="0 0.8 0"
                     color="#c0c0c0"
                     radius="0.2"
                     radius-tubular="0.025"
@@ -175,12 +177,12 @@
                     animation="property: rotation; to: 360 0 0; loop: true; dur: 6000">
                 </a-torus>
                 
-                <!-- 接続チェーン -->
+                <!-- 接続チェーン - 中央基準で調整 -->
                 <a-entity id="chain">
-                    <a-cylinder position="0 0.9 0" radius="0.01" height="0.05" color="#c0c0c0"></a-cylinder>
-                    <a-cylinder position="0 0.85 0" radius="0.01" height="0.05" color="#c0c0c0"></a-cylinder>
-                    <a-cylinder position="0 0.8 0" radius="0.01" height="0.05" color="#c0c0c0"></a-cylinder>
-                    <a-cylinder position="0 0.75 0" radius="0.01" height="0.05" color="#c0c0c0"></a-cylinder>
+                    <a-cylinder position="0 0.7 0" radius="0.01" height="0.05" color="#c0c0c0"></a-cylinder>
+                    <a-cylinder position="0 0.65 0" radius="0.01" height="0.05" color="#c0c0c0"></a-cylinder>
+                    <a-cylinder position="0 0.6 0" radius="0.01" height="0.05" color="#c0c0c0"></a-cylinder>
+                    <a-cylinder position="0 0.55 0" radius="0.01" height="0.05" color="#c0c0c0"></a-cylinder>
                 </a-entity>
                 
                 <!-- デコレーション -->
@@ -202,14 +204,14 @@
                     animation="property: position; to: -0.3 0.65 0; dir: alternate; loop: true; dur: 2500">
                 </a-cylinder>
                 
-                <!-- テスト用の巨大な球（デバッグ） -->
+                <!-- テスト用の巨大な球（デバッグ） - 中央基準 -->
                 <a-sphere
                     id="test-sphere"
-                    position="0 3.0 0"
-                    radius="0.3"
+                    position="0 2.0 0"
+                    radius="0.2"
                     color="#ff0000"
-                    material="color: #ff0000; emissive: #ff0000; emissiveIntensity: 0.8;"
-                    animation="property: scale; to: 1.5 1.5 1.5; dir: alternate; loop: true; dur: 1000"
+                    material="color: #ff0000; emissive: #ff0000; emissiveIntensity: 1.0;"
+                    animation="property: scale; to: 1.3 1.3 1.3; dir: alternate; loop: true; dur: 1000"
                     visible="true">
                 </a-sphere>
             </a-entity>
@@ -290,7 +292,7 @@
         
         // デバッグ用グローバル関数
         window.ARKeyholder = {
-            version: '3.1.0-visibility-fix',
+            version: '3.2.0-center-fix',
             forceShow: () => {
                 const obj = document.querySelector('#keyholder-object');
                 obj.setAttribute('visible', true);
@@ -300,6 +302,22 @@
             toggleTestSphere: () => {
                 const sphere = document.querySelector('#test-sphere');
                 sphere.setAttribute('visible', !sphere.getAttribute('visible'));
+            },
+            centerObject: () => {
+                const obj = document.querySelector('#keyholder-object');
+                obj.setAttribute('position', '0 0 0');
+                obj.setAttribute('rotation', '0 0 0');
+                console.log('Object centered at marker origin');
+            },
+            adjustPosition: (x, y, z) => {
+                const obj = document.querySelector('#keyholder-object');
+                obj.setAttribute('position', `${x} ${y} ${z}`);
+                console.log(`Position adjusted to: ${x}, ${y}, ${z}`);
+            },
+            getPosition: () => {
+                const obj = document.querySelector('#keyholder-object');
+                console.log('Current position:', obj.getAttribute('position'));
+                return obj.getAttribute('position');
             },
             loadProject: (projectId) => {
                 const url = new URL(window.location);
@@ -436,7 +454,7 @@
                         gltfEntity.setAttribute('src', modelSrc);
                         gltfEntity.setAttribute('position', projectData.character.position ? 
                             `${projectData.character.position[0]} ${projectData.character.position[1]} ${projectData.character.position[2]}` : 
-                            '0 0.5 0');
+                            '0 0 0');
                         gltfEntity.setAttribute('scale', `${projectData.character.scale || 1} ${projectData.character.scale || 1} ${projectData.character.scale || 1}`);
                         
                         // モデル読み込み完了イベント
