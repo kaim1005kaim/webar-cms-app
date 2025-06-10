@@ -14,6 +14,7 @@
                 this.marker = this.el;
                 this.characterContainer = null;
                 this.isMarkerVisible = false;
+                this.manualOffset = {x: 0, y: 0, z: 0}; // 手動調整値を保存
                 console.log('🎯 Advanced marker handler initialized with tick-based sync');
                 
                 this.marker.addEventListener('markerFound', () => {
@@ -38,8 +39,12 @@
                     
                     // マーカーが検出されている間のみ同期
                     if (this.isMarkerVisible && this.characterContainer) {
-                        // マーカーの座標系に完全に合わせる
-                        this.characterContainer.object3D.position.set(0, 0, 0);
+                        // マーカーの座標系に合わせつつ、手動オフセットを適用
+                        this.characterContainer.object3D.position.set(
+                            this.manualOffset.x, 
+                            this.manualOffset.y, 
+                            this.manualOffset.z
+                        );
                         this.characterContainer.object3D.rotation.set(0, 0, 0);
                         this.characterContainer.object3D.scale.set(1, 1, 1);
                         
@@ -47,6 +52,12 @@
                         this.characterContainer.object3D.updateMatrixWorld(true);
                     }
                 }
+            },
+            
+            setOffset: function(x, y, z) {
+                this.manualOffset.x = x;
+                this.manualOffset.y = y;
+                this.manualOffset.z = z;
             }
         });
     </script>
@@ -169,7 +180,7 @@
                     radius="0.03"
                     color="#00ff00"
                     material="emissive: #00ff00; emissiveIntensity: 3.0; transparent: true; opacity: 0.9;"
-                    visible="false">
+                    visible="true">
                 </a-sphere>
                 
                 <!-- デバッグ用テストスフィア -->
@@ -235,7 +246,7 @@
                         from: '0 0 0',
                         to: '1 1 1',
                         dur: 800,
-                        easing: 'easeOutBounce'
+                        easing: 'easeOutQuad'
                     });
                 });
             });
@@ -280,18 +291,26 @@
                 console.log('Reference spheres hidden');
             },
             adjustCharacter: (x, y, z) => {
-                const wrapper = document.querySelector('#model-wrapper');
-                if (wrapper) {
-                    wrapper.object3D.position.set(x, y, z);
-                    wrapper.object3D.updateMatrixWorld(true);
-                    console.log(`Character wrapper moved to: ${x}, ${y}, ${z}`);
+                // マーカーハンドラーにオフセットを設定
+                const marker = document.querySelector('#hiro-marker');
+                if (marker && marker.components.markerhandler) {
+                    marker.components.markerhandler.setOffset(x, y, z);
+                    console.log(`Character position offset set to: ${x}, ${y}, ${z}`);
                 } else {
-                    const models = document.querySelectorAll('#character-container a-gltf-model');
-                    models.forEach(model => {
-                        model.object3D.position.set(x, y, z);
-                        model.object3D.updateMatrixWorld(true);
-                    });
-                    console.log(`Character models moved to: ${x}, ${y}, ${z}`);
+                    // フォールバック: 直接調整
+                    const wrapper = document.querySelector('#model-wrapper');
+                    if (wrapper) {
+                        wrapper.object3D.position.set(x, y, z);
+                        wrapper.object3D.updateMatrixWorld(true);
+                        console.log(`Character wrapper moved to: ${x}, ${y}, ${z}`);
+                    } else {
+                        const container = document.querySelector('#character-container');
+                        if (container) {
+                            container.object3D.position.set(x, y, z);
+                            container.object3D.updateMatrixWorld(true);
+                            console.log(`Character container moved to: ${x}, ${y}, ${z}`);
+                        }
+                    }
                 }
             },
             getMarkerMatrix: () => {
@@ -360,6 +379,19 @@
             resetAR: () => {
                 console.log('Attempting AR reset...');
                 location.reload();
+            },
+            quickFix: () => {
+                console.log('Applying common offset fixes...');
+                // 左側にズレている場合の一般的な修正値
+                ARKeyholder.adjustCharacter(0.1, 0, 0);  // 右に少し移動
+                console.log('Applied right offset (+0.1). Try: ARKeyholder.adjustCharacter(x,y,z) for custom values');
+            },
+            centerTest: () => {
+                console.log('Testing center position with visible markers...');
+                ARKeyholder.showReferences();
+                ARKeyholder.adjustCharacter(0, 0, 0);
+                console.log('Green sphere = marker center, Red sphere = height reference');
+                console.log('If character is not on green sphere, use ARKeyholder.adjustCharacter(x,y,z)');
             },
             loadProject: (projectId) => {
                 const url = new URL(window.location);
