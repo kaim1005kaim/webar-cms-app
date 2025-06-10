@@ -410,7 +410,8 @@
             
             try {
                 // マーカー画像のアップロード処理
-                const markerFile = document.getElementById('marker-image').files[0];
+                const markerFileInput = document.getElementById('marker-image');
+                const markerFile = markerFileInput ? markerFileInput.files[0] : null;
                 let markerImageUrl = './placeholder.svg';
                 
                 if (markerFile) {
