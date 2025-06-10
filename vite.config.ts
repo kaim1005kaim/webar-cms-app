@@ -3,30 +3,23 @@ import { copyFileSync, existsSync, mkdirSync } from 'fs'
 import { resolve } from 'path'
 
 export default defineConfig({
-  root: 'public',
   server: {
-    port: 3000,
-    proxy: {
-      '/api': {
-        target: 'http://localhost:3001',
-        changeOrigin: true
-      }
-    }
+    port: 3000
   },
   build: {
-    outDir: '../dist',
+    outDir: 'dist',
     emptyOutDir: true,
     rollupOptions: {
       input: {
-        main: resolve(__dirname, 'public/index.html'),
         ar: resolve(__dirname, 'public/ar.html'),
-        admin: resolve(__dirname, 'public/admin.html')
+        admin: resolve(__dirname, 'public/admin.html'),
+        main: resolve(__dirname, 'public/index.html')
       }
     }
   },
   plugins: [
     {
-      name: 'copy-ar-files',
+      name: 'copy-static-files',
       writeBundle() {
         try {
           const distDir = resolve(__dirname, 'dist')
@@ -53,9 +46,9 @@ export default defineConfig({
             mkdirSync(markersDir, { recursive: true })
           }
           
-          console.log('✓ AR files copied to dist/')
+          console.log('✓ Static files copied to dist/')
         } catch (error) {
-          console.warn('Failed to copy AR files:', error.message)
+          console.warn('Failed to copy files:', error.message)
         }
       }
     }
