@@ -279,14 +279,37 @@
             }
         }
         
-        // プロジェクト一覧読み込み
+        // Supabase設定
+        const SUPABASE_URL = 'https://flqbgdqtphokkekminvo.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZscWJnZHF0cGhva2tla21pbnZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk1NjgyMjIsImV4cCI6MjA2NTE0NDIyMn0.rEXiy6TbMVflwpkDv9z1pMV6lsrmW7ukM81qGj4pfp0';
+        const SUPABASE_HEADERS = {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'apikey': SUPABASE_ANON_KEY
+        };
+
+        // プロジェクト一覧読み込み（Supabase版）
         async function loadProjects() {
             try {
-                const response = await fetch('/api/projects');
-                const projects = await response.json();
-                renderProjects(projects);
+                console.log('Loading projects from Supabase...');
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/projects?select=*`, {
+                    method: 'GET',
+                    headers: SUPABASE_HEADERS
+                });
+                
+                if (response.ok) {
+                    const projects = await response.json();
+                    console.log('Projects loaded from Supabase:', projects);
+                    renderProjects(projects);
+                } else {
+                    console.error('Supabase error:', response.status, await response.text());
+                    throw new Error('Supabase API error');
+                }
             } catch (error) {
                 console.error('プロジェクト読み込みエラー:', error);
+                // フォールバック: ローカルストレージから読み込み
+                const projects = JSON.parse(localStorage.getItem('ar-projects') || '[]');
+                renderProjects(projects);
             }
         }
         
@@ -299,19 +322,27 @@
             };
             
             try {
-                // APIからプロジェクト数を取得
-                const projectsResponse = await fetch('/api/projects');
+                // Supabaseからプロジェクト数を取得
+                const projectsResponse = await fetch(`${SUPABASE_URL}/rest/v1/projects?select=count`, {
+                    method: 'GET',
+                    headers: SUPABASE_HEADERS
+                });
+                
                 if (projectsResponse.ok) {
                     const projectsData = await projectsResponse.json();
-                    stats.totalProjects = projectsData.projects ? projectsData.projects.length : 0;
+                    stats.totalProjects = projectsData.length || 0;
                     stats.totalMarkers = stats.totalProjects; // 1プロジェクトに1マーカー
                 }
                 
-                // APIからモデル数を取得
-                const modelsResponse = await fetch('/api/models');
-                if (modelsResponse.ok) {
-                    const modelsData = await modelsResponse.json();
-                    stats.totalModels = modelsData.models ? modelsData.models.length : 3;
+                // APIからモデル数を取得（フォールバック付き）
+                try {
+                    const modelsResponse = await fetch('/api/models');
+                    if (modelsResponse.ok) {
+                        const modelsData = await modelsResponse.json();
+                        stats.totalModels = modelsData.models ? modelsData.models.length : 3;
+                    }
+                } catch (modelError) {
+                    console.warn('Models API error, using default:', modelError);
                 }
             } catch (error) {
                 console.warn('Stats API error, using localStorage fallback:', error);
@@ -345,11 +376,10 @@
                 const card = document.createElement('div');
                 card.className = 'project-card';
                 card.innerHTML = `
-                    <img src="${project.marker?.imageUrl || './placeholder.svg'}" alt="${project.name}" onerror="this.src='./placeholder.svg'">
+                    <img src="${project.image_url || './placeholder.svg'}" alt="${project.title}" onerror="this.src='./placeholder.svg'">
                     <div class="project-card-content">
-                        <h3>${project.name}</h3>
-                        <p>${project.metadata?.description || '説明なし'}</p>
-                        <p><small>作成者: ${project.creator?.name || 'Unknown'}</small></p>
+                        <h3>${project.title}</h3>
+                        <p>${project.description || '説明なし'}</p>
                         <p><small>作成日: ${new Date(project.created_at).toLocaleDateString()}</small></p>
                         <div style="margin: 10px 0; text-align: center;">
                             <div style="background: #f8f9fa; padding: 10px; border-radius: 6px; margin-bottom: 10px;">
@@ -532,29 +562,34 @@
                     created_at: new Date().toISOString()
                 };
                 
-                // APIを使ってサーバーに保存
+                // Supabaseに保存を試行
                 let saveSuccess = false;
                 try {
-                    const response = await fetch('/api/projects', {
+                    // Supabase用のデータ形式に変換
+                    const supabaseData = {
+                        title: projectData.name,
+                        description: projectData.metadata?.description || '',
+                        image_url: projectData.marker?.imageUrl || ''
+                    };
+                    
+                    const response = await fetch(`${SUPABASE_URL}/rest/v1/projects`, {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify(projectData),
+                        headers: SUPABASE_HEADERS,
+                        body: JSON.stringify(supabaseData),
                     });
                     
                     if (response.ok) {
                         const result = await response.json();
-                        showNotification('プロジェクトを作成しました！', 'success');
+                        showNotification('プロジェクトをSupabaseに保存しました！', 'success');
                         saveSuccess = true;
-                        console.log('Project saved via API:', result);
+                        console.log('Project saved to Supabase:', result);
                     } else {
                         const errorText = await response.text();
-                        console.error('API response error:', response.status, errorText);
-                        throw new Error(`API response error: ${response.status}`);
+                        console.error('Supabase response error:', response.status, errorText);
+                        throw new Error(`Supabase response error: ${response.status}`);
                     }
                 } catch (apiError) {
-                    console.warn('API保存失敗、ローカルストレージにフォールバック:', apiError);
+                    console.warn('Supabase保存失敗、ローカルストレージにフォールバック:', apiError);
                     // フォールバック: ローカルストレージに保存
                     const projects = JSON.parse(localStorage.getItem('ar-projects') || '[]');
                     projects.push(projectData);
