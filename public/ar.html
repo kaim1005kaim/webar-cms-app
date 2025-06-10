@@ -349,7 +349,7 @@
                                     description: supabaseProject.description || '' 
                                 },
                                 character: {
-                                    modelUrl: 'keyholder-default', // 現在はデフォルトモデル
+                                    modelUrl: supabaseProject.model_url || 'keyholder-default',
                                     scale: 1,
                                     position: [0, 0.5, 0]
                                 },
@@ -419,16 +419,43 @@
                         const defaultObjects = keyholderObject.querySelectorAll('a-box, a-sphere, a-torus, a-cylinder');
                         defaultObjects.forEach(obj => obj.setAttribute('visible', false));
                         
+                        // Base64データかURLかを判定
+                        let modelSrc = modelUrl;
+                        if (modelUrl.startsWith('data:application/octet-stream')) {
+                            // Base64データの場合はそのまま使用
+                            console.log('Loading Base64 GLB model');
+                            modelSrc = modelUrl;
+                        } else if (modelUrl.startsWith('http')) {
+                            // 外部URLの場合
+                            console.log('Loading external GLB model from URL');
+                            modelSrc = modelUrl;
+                        }
+                        
                         // GLTFモデルを追加
                         const gltfEntity = document.createElement('a-gltf-model');
-                        gltfEntity.setAttribute('src', modelUrl);
+                        gltfEntity.setAttribute('src', modelSrc);
                         gltfEntity.setAttribute('position', projectData.character.position ? 
                             `${projectData.character.position[0]} ${projectData.character.position[1]} ${projectData.character.position[2]}` : 
                             '0 0.5 0');
                         gltfEntity.setAttribute('scale', `${projectData.character.scale || 1} ${projectData.character.scale || 1} ${projectData.character.scale || 1}`);
                         
+                        // モデル読み込み完了イベント
+                        gltfEntity.addEventListener('model-loaded', () => {
+                            console.log('✅ Custom GLB model loaded successfully');
+                            updateStatus(document.getElementById('ar-status'), `カスタムモデル読み込み完了: ${projectData.name}`, 'ok');
+                        });
+                        
+                        // エラーハンドリング
+                        gltfEntity.addEventListener('model-error', (event) => {
+                            console.error('❌ GLB model loading failed:', event.detail);
+                            updateStatus(document.getElementById('ar-status'), 'カスタムモデル読み込みエラー', 'error');
+                            // デフォルトモデルにフォールバック
+                            defaultObjects.forEach(obj => obj.setAttribute('visible', true));
+                            gltfEntity.remove();
+                        });
+                        
                         keyholderObject.appendChild(gltfEntity);
-                        console.log('Custom model added:', modelUrl);
+                        console.log('Custom GLB model entity created:', modelSrc.substring(0, 100) + '...');
                     }
                 }
                 

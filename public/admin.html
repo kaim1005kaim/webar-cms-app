@@ -163,10 +163,27 @@
                             <select id="character-model" name="characterModel">
                                 <option value="">モデルを選択...</option>
                                 <option value="keyholder-default">デフォルトキーホルダー (WebGPU最適化)</option>
-                                <option value="https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Duck/glTF-Binary/Duck.glb">アヒル (外部)</option>
-                                <option value="https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Box/glTF-Binary/Box.glb">キューブ (外部)</option>
-                                <option value="https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Avocado/glTF-Binary/Avocado.glb">アボカド (外部)</option>
+                                <option value="https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Duck/glTF-Binary/Duck.glb">アヒル (外部サンプル)</option>
+                                <option value="https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Box/glTF-Binary/Box.glb">キューブ (外部サンプル)</option>
+                                <option value="https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Avocado/glTF-Binary/Avocado.glb">アボカド (外部サンプル)</option>
+                                <option value="custom-upload">🆕 カスタムGLBをアップロード</option>
                             </select>
+                        </div>
+                        
+                        <!-- GLBアップロード機能 -->
+                        <div class="form-group" id="glb-upload-section" style="display: none;">
+                            <label for="glb-file">GLBファイル (.glb)</label>
+                            <div class="upload-area" id="glb-upload-area">
+                                <p>📦 GLBファイルをドラッグ&ドロップまたはクリックしてアップロード</p>
+                                <p><small>推奨: 10MB以下、最適化済みモデル</small></p>
+                                <input type="file" id="glb-file" accept=".glb" style="display: none;">
+                            </div>
+                            <div id="glb-preview" style="display: none; margin-top: 10px;">
+                                <div style="background: #f8f9fa; padding: 10px; border-radius: 6px;">
+                                    <p>✅ <span id="glb-filename"></span></p>
+                                    <p><small>サイズ: <span id="glb-filesize"></span></small></p>
+                                </div>
+                            </div>
                         </div>
                         
                         <div class="form-group">
@@ -542,11 +559,18 @@
                 // Supabaseに保存を試行
                 let saveSuccess = false;
                 try {
+                    // カスタムGLBが選択されている場合の処理
+                    let finalModelUrl = formData.get('characterModel');
+                    if (finalModelUrl === 'custom-upload' && uploadedGlbData) {
+                        finalModelUrl = uploadedGlbData; // Base64データを保存
+                    }
+                    
                     // Supabase用のデータ形式に変換
                     const supabaseData = {
                         title: projectData.name,
                         description: projectData.metadata?.description || '',
-                        image_url: projectData.marker?.imageUrl || ''
+                        image_url: projectData.marker?.imageUrl || '',
+                        model_url: finalModelUrl || 'keyholder-default'
                     };
                     
                     const response = await fetch(`${SUPABASE_URL}/rest/v1/projects`, {
@@ -1007,6 +1031,77 @@
             // 選択値を復元
             if (currentValue && select.querySelector(`option[value="${currentValue}"]`)) {
                 select.value = currentValue;
+            }
+        }
+        
+        // GLBアップロード機能
+        let uploadedGlbData = null;
+        
+        document.getElementById('character-model').addEventListener('change', function(e) {
+            const glbSection = document.getElementById('glb-upload-section');
+            if (e.target.value === 'custom-upload') {
+                glbSection.style.display = 'block';
+            } else {
+                glbSection.style.display = 'none';
+                uploadedGlbData = null;
+            }
+        });
+        
+        // GLBファイルアップロード処理
+        const glbUploadArea = document.getElementById('glb-upload-area');
+        const glbFileInput = document.getElementById('glb-file');
+        
+        glbUploadArea.addEventListener('click', () => glbFileInput.click());
+        glbUploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            glbUploadArea.style.background = '#f0f8ff';
+        });
+        glbUploadArea.addEventListener('dragleave', () => {
+            glbUploadArea.style.background = '';
+        });
+        glbUploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            glbUploadArea.style.background = '';
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleGlbUpload(files[0]);
+            }
+        });
+        
+        glbFileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleGlbUpload(e.target.files[0]);
+            }
+        });
+        
+        async function handleGlbUpload(file) {
+            try {
+                if (!file.name.toLowerCase().endsWith('.glb')) {
+                    throw new Error('GLBファイルを選択してください');
+                }
+                
+                if (file.size > 20 * 1024 * 1024) { // 20MB制限
+                    throw new Error('ファイルサイズが大きすぎます（20MB以下にしてください）');
+                }
+                
+                // ファイル情報を表示
+                document.getElementById('glb-filename').textContent = file.name;
+                document.getElementById('glb-filesize').textContent = (file.size / 1024 / 1024).toFixed(2) + ' MB';
+                document.getElementById('glb-preview').style.display = 'block';
+                
+                // Base64エンコード
+                const reader = new FileReader();
+                uploadedGlbData = await new Promise((resolve, reject) => {
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                });
+                
+                showNotification('GLBファイルの準備が完了しました', 'success');
+                
+            } catch (error) {
+                console.error('GLB upload error:', error);
+                showNotification(error.message, 'error');
             }
         }
         
