@@ -695,7 +695,7 @@
                     }
                     
                     // GLBファイルが大きすぎる場合はローカルストレージにフォールバック
-                    if (finalModelUrl && finalModelUrl.startsWith('data:') && finalModelUrl.length > 5 * 1024 * 1024) {
+                    if (finalModelUrl && finalModelUrl.startsWith('data:') && finalModelUrl.length > 10 * 1024 * 1024) {
                         console.warn('Large GLB file detected, saving to localStorage instead of Supabase');
                         throw new Error('Large file - using localStorage fallback');
                     }
@@ -749,9 +749,13 @@
                     // GLBファイルが大きい場合はmodel_urlを簡略化
                     if (projectData.character && projectData.character.modelUrl && 
                         projectData.character.modelUrl.startsWith('data:') && 
-                        projectData.character.modelUrl.length > 1024 * 1024) {
+                        projectData.character.modelUrl.length > 15 * 1024 * 1024) {
+                        // 15MB以上の場合のみ簡略化
+                        const originalGlbData = projectData.character.modelUrl;
                         projectData.character.modelUrl = 'large-glb-local-' + Date.now();
-                        console.log('Large GLB simplified for localStorage');
+                        // 大きなGLBファイルは別途保存
+                        localStorage.setItem(`glb-data-${projectData.id}`, originalGlbData);
+                        console.log('Large GLB simplified for localStorage but data preserved');
                     }
                     
                     projects.push(projectData);

@@ -738,6 +738,17 @@ arjs="
                             // 外部URLの場合
                             console.log('Loading external GLB model from URL');
                             modelSrc = modelUrl;
+                        } else if (modelUrl.startsWith('large-glb-local-')) {
+                            // 大きなローカルGLBファイルの場合
+                            console.log('Loading large local GLB model');
+                            const glbData = localStorage.getItem(`glb-data-${projectData.id}`);
+                            if (glbData) {
+                                modelSrc = glbData;
+                                console.log('Large GLB data retrieved from localStorage');
+                            } else {
+                                console.warn('Large GLB data not found in localStorage');
+                                return; // モデル読み込みをスキップ
+                            }
                         }
                         
                         // GLTFモデルを追加
