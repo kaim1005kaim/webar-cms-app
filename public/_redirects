@@ -1,8 +1,6 @@
-# HTMLファイルの明示的なルーティング
-/admin.html    /public/admin.html    200
-/admin         /public/admin.html    200
-/ar.html       /public/ar.html       200
-/ar            /public/ar.html       200
+# 短縮URLのサポート
+/admin    /admin.html    200
+/ar       /ar.html       200
 
 # APIプロキシ
 /api/*    /.netlify/functions/:splat    200
