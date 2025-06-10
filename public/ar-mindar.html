@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>AR Keyholder - MindAR Edition</title>
+    
+    <!-- MindAR.js -->
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.4/dist/mindar-image-aframe.prod.js"></script>
+    
+    <style>
+        body { 
+            margin: 0; 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; 
+            overflow: hidden; 
+            background: #000;
+        }
+        
+        #ar-scene { 
+            width: 100vw; 
+            height: 100vh; 
+        }
+        
+        #status-overlay {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            z-index: 1000;
+            max-width: 400px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .status-item {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+        
+        .status-ok { color: #4ade80; }
+        .status-error { color: #f87171; }
+        .status-warning { color: #fbbf24; }
+        
+        #instructions {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 14px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .marker-link {
+            color: #60a5fa;
+            text-decoration: none;
+            margin-top: 10px;
+            display: inline-block;
+        }
+        
+        #loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            z-index: 10000;
+        }
+    </style>
+</head>
+<body>
+    <!-- ローディング画面 -->
+    <div id="loading">
+        <h3>🧠 MindAR初期化中...</h3>
+        <p>AIベースのマーカー検出を準備しています</p>
+    </div>
+
+    <!-- ステータス表示 -->
+    <div id="status-overlay" style="display: none;">
+        <h3>🎯 AR Keyholder - MindAR Edition</h3>
+        <div class="status-item" id="camera-status">📷 カメラ: <span class="status-ok">アクティブ</span></div>
+        <div class="status-item" id="ar-status">🧠 MindAR: <span class="status-ok">準備完了</span></div>
+        <div class="status-item" id="marker-status">📍 マーカー: 検出待機中</div>
+        <div class="status-item" id="visibility-status">👁️ 表示: <span class="status-warning">待機中</span></div>
+    </div>
+    
+    <!-- 使用方法 -->
+    <div id="instructions" style="display: none;">
+        <strong>📖 使用方法:</strong><br>
+        1. カスタムマーカー、または<a href="https://raw.githubusercontent.com/hiukim/mind-ar-js/master/examples/image-tracking/assets/card-example/card.png" 
+              target="_blank" class="marker-link">デフォルトカード</a>を用意<br>
+        2. マーカーをカメラに向けてください<br>
+        3. AIが高精度でマーカーを認識し、3Dキャラクターが表示されます！
+    </div>
+
+    <!-- MindAR Scene -->
+    <a-scene
+        id="ar-scene"
+        mindar-image="imageTargetSrc: #defaultMarker; maxTrack: 1; filterMinCF: 0.0001; filterBeta: 0.01"
+        color-space="sRGB"
+        renderer="colorManagement: true; physicallyCorrectLights: true; antialias: true"
+        vr-mode-ui="enabled: false"
+        device-orientation-permission-ui="enabled: false">
+        
+        <!-- アセット -->
+        <a-assets>
+            <img id="defaultMarker" src="" crossorigin="anonymous">
+        </a-assets>
+        
+        <!-- MindARアンカー -->
+        <a-camera 
+            mindar-image-camera="true"
+            position="0 0 0">
+        </a-camera>
+        
+        <!-- マーカーターゲット -->
+        <a-entity 
+            id="marker-anchor"
+            mindar-image-target="targetIndex: 0"
+            visible="false">
+            
+            <!-- キャラクターモデル表示エリア -->
+            <a-entity id="character-container" position="0 0 0" rotation="0 0 0" scale="1 1 1">
+                
+                <!-- 基準点（緑の球） - マーカー中心確認用 -->
+                <a-sphere
+                    id="center-reference"
+                    position="0 0 0"
+                    radius="0.03"
+                    color="#00ff00"
+                    material="emissive: #00ff00; emissiveIntensity: 3.0; transparent: true; opacity: 0.9;"
+                    visible="false">
+                </a-sphere>
+                
+                <!-- キャラクターモデルがここに動的に追加される -->
+                
+            </a-entity>
+        </a-entity>
+        
+        <!-- ライティング -->
+        <a-light type="ambient" color="#ffffff" intensity="0.8"></a-light>
+        <a-light type="directional" position="0 1 0" color="#ffffff" intensity="1.2"></a-light>
+        <a-light type="point" position="0 2 1" color="#ffffff" intensity="0.8"></a-light>
+    </a-scene>
+
+    <script>
+        // DOM要素
+        const loading = document.getElementById('loading');
+        const statusOverlay = document.getElementById('status-overlay');
+        const instructions = document.getElementById('instructions');
+        const markerStatus = document.getElementById('marker-status');
+        const visibilityStatus = document.getElementById('visibility-status');
+        
+        // ステータス更新関数
+        function updateStatus(element, message, type = 'ok') {
+            const statusClasses = { ok: 'status-ok', error: 'status-error', warning: 'status-warning' };
+            element.innerHTML = element.innerHTML.split(':')[0] + ': ' + 
+                `<span class="${statusClasses[type]}\">${message}</span>`;
+        }
+        
+        // Supabase設定
+        const SUPABASE_URL = 'https://flqbgdqtphokkekminvo.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZscWJnZHF0cGhva2tla21pbnZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk1NjgyMjIsImV4cCI6MjA2NTE0NDIyMn0.rEXiy6TbMVflwpkDv9z1pMV6lsrmW7ukM81qGj4pfp0';
+        const SUPABASE_HEADERS = {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'apikey': SUPABASE_ANON_KEY
+        };
+
+        // デバッグ用グローバル関数
+        window.ARKeyholder = {
+            version: '4.0.0-mindar',
+            showReferences: () => {
+                const ref = document.querySelector('#center-reference');
+                ref.setAttribute('visible', true);
+                console.log('Reference sphere visible - Green=center(0,0,0)');
+            },
+            hideReferences: () => {
+                const ref = document.querySelector('#center-reference');
+                ref.setAttribute('visible', false);
+                console.log('Reference sphere hidden');
+            },
+            adjustCharacter: (x, y, z) => {
+                const container = document.querySelector('#character-container');
+                if (container) {
+                    container.object3D.position.set(x, y, z);
+                    container.object3D.updateMatrixWorld(true);
+                    console.log(`Character container moved to: ${x}, ${y}, ${z}`);
+                }
+            },
+            debugInfo: () => {
+                const anchor = document.querySelector('#marker-anchor');
+                const container = document.querySelector('#character-container');
+                console.log('=== MINDAR DEBUG INFO ===');
+                console.log('Anchor position:', anchor.object3D.position);
+                console.log('Container position:', container.object3D.position);
+                console.log('Container world position:', container.object3D.getWorldPosition(new THREE.Vector3()));
+                return {
+                    anchor: anchor.object3D.position,
+                    container: container.object3D.position,
+                    containerWorld: container.object3D.getWorldPosition(new THREE.Vector3())
+                };
+            },
+            centerTest: () => {
+                console.log('Testing center position with MindAR...');
+                ARKeyholder.showReferences();
+                ARKeyholder.adjustCharacter(0, 0, 0);
+                console.log('Green sphere = marker center');
+            }
+        };
+        
+        // プロジェクトデータの読み込み
+        async function loadProjectData() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const projectId = urlParams.get('project');
+            
+            if (projectId) {
+                try {
+                    console.log('Loading project from Supabase:', projectId);
+                    
+                    // Supabaseからプロジェクトデータを取得
+                    const response = await fetch(`${SUPABASE_URL}/rest/v1/projects?id=eq.${projectId}&select=*`, {
+                        method: 'GET',
+                        headers: SUPABASE_HEADERS
+                    });
+                    
+                    let projectData;
+                    
+                    if (response.ok) {
+                        const supabaseProjects = await response.json();
+                        console.log('Raw Supabase project data:', supabaseProjects);
+                        
+                        if (supabaseProjects && supabaseProjects.length > 0) {
+                            const supabaseProject = supabaseProjects[0];
+                            
+                            // Supabaseデータを既存形式に変換
+                            projectData = {
+                                id: supabaseProject.id,
+                                name: supabaseProject.title,
+                                metadata: { 
+                                    description: supabaseProject.description || '' 
+                                },
+                                character: {
+                                    modelUrl: supabaseProject.model_url || 'default',
+                                    scale: supabaseProject.scale || 1,
+                                    position: [
+                                        supabaseProject.position_x || 0,
+                                        supabaseProject.position_y || 0,
+                                        supabaseProject.position_z || 0
+                                    ],
+                                    rotation: [
+                                        supabaseProject.rotation_x || 0,
+                                        supabaseProject.rotation_y || 0,
+                                        supabaseProject.rotation_z || 0
+                                    ]
+                                },
+                                marker: { 
+                                    imageUrl: supabaseProject.image_url || '',
+                                    type: 'custom' // カスタムマーカー
+                                },
+                                created_at: supabaseProject.created_at
+                            };
+                            
+                            console.log('Converted project data:', projectData);
+                        }
+                    } else {
+                        console.warn('Supabase fetch failed, trying localStorage');
+                    }
+                    
+                    // フォールバック: ローカルストレージから取得
+                    if (!projectData) {
+                        const projects = JSON.parse(localStorage.getItem('ar-projects') || '[]');
+                        projectData = projects.find(p => p.id === projectId);
+                        console.log('Project loaded from localStorage:', projectData);
+                    }
+                    
+                    if (projectData) {
+                        await applyProjectSettings(projectData);
+                        updateStatus(document.getElementById('ar-status'), `プロジェクト: ${projectData.name}`, 'ok');
+                    } else {
+                        console.warn('Project not found:', projectId);
+                        updateStatus(document.getElementById('ar-status'), 'プロジェクトが見つかりません', 'error');
+                        // デフォルトマーカーを使用
+                        await useDefaultMarker();
+                    }
+                } catch (error) {
+                    console.error('Project loading error:', error);
+                    updateStatus(document.getElementById('ar-status'), 'プロジェクト読み込みエラー', 'error');
+                    await useDefaultMarker();
+                }
+            } else {
+                console.log('No project ID specified, using default marker');
+                await useDefaultMarker();
+            }
+        }
+        
+        // デフォルトマーカーを使用
+        async function useDefaultMarker() {
+            const defaultMarkerUrl = 'https://raw.githubusercontent.com/hiukim/mind-ar-js/master/examples/image-tracking/assets/card-example/card.png';
+            document.querySelector('#defaultMarker').src = defaultMarkerUrl;
+            updateStatus(document.getElementById('ar-status'), 'デフォルトマーカー使用', 'warning');
+        }
+        
+        // プロジェクト設定の適用
+        async function applyProjectSettings(projectData) {
+            try {
+                console.log('Applying project settings with MindAR:', projectData);
+                
+                // カスタムマーカーの設定
+                if (projectData.marker && projectData.marker.imageUrl && projectData.marker.imageUrl !== '') {
+                    console.log('Setting custom marker:', projectData.marker.imageUrl);
+                    document.querySelector('#defaultMarker').src = projectData.marker.imageUrl;
+                } else {
+                    // デフォルトマーカーを使用
+                    await useDefaultMarker();
+                }
+                
+                // キャラクターモデルの設定
+                if (projectData.character && projectData.character.modelUrl) {
+                    const modelUrl = projectData.character.modelUrl;
+                    console.log('Loading character model:', modelUrl);
+                    
+                    if (modelUrl && modelUrl !== 'default' && modelUrl !== '') {
+                        const characterContainer = document.querySelector('#character-container');
+                        
+                        // Base64データかURLかを判定
+                        let modelSrc = modelUrl;
+                        if (modelUrl.startsWith('data:application/octet-stream')) {
+                            console.log('Loading Base64 GLB model');
+                            modelSrc = modelUrl;
+                        } else if (modelUrl.startsWith('http')) {
+                            console.log('Loading external GLB model from URL');
+                            modelSrc = modelUrl;
+                        } else if (modelUrl.startsWith('large-glb-local-')) {
+                            console.log('Loading large local GLB model');
+                            const glbData = localStorage.getItem(`glb-data-${projectData.id}`);
+                            if (glbData) {
+                                modelSrc = glbData;
+                                console.log('Large GLB data retrieved from localStorage');
+                            } else {
+                                console.warn('Large GLB data not found in localStorage');
+                                return;
+                            }
+                        }
+                        
+                        // GLTFモデルを追加
+                        const gltfEntity = document.createElement('a-gltf-model');
+                        gltfEntity.setAttribute('src', modelSrc);
+                        
+                        // 3Dプレビューで調整された位置・回転・スケールを適用
+                        const position = projectData.character.position ? 
+                            `${projectData.character.position[0]} ${projectData.character.position[1]} ${projectData.character.position[2]}` : 
+                            '0 0 0';
+                        
+                        const rotation = projectData.character.rotation ? 
+                            `${projectData.character.rotation[0]} ${projectData.character.rotation[1]} ${projectData.character.rotation[2]}` : 
+                            '0 0 0';
+                        
+                        const scale = projectData.character.scale || 1;
+                        
+                        gltfEntity.setAttribute('position', position);
+                        gltfEntity.setAttribute('scale', `${scale} ${scale} ${scale}`);
+                        gltfEntity.setAttribute('rotation', rotation);
+                        
+                        console.log('Applied 3D preview settings:', {
+                            position: position,
+                            rotation: rotation,
+                            scale: scale
+                        });
+                        
+                        // モデル読み込み完了イベント
+                        gltfEntity.addEventListener('model-loaded', () => {
+                            console.log('✅ Character model loaded successfully with MindAR');
+                            updateStatus(document.getElementById('ar-status'), `キャラクター読み込み完了: ${projectData.name}`, 'ok');
+                        });
+                        
+                        // エラーハンドリング
+                        gltfEntity.addEventListener('model-error', (event) => {
+                            console.error('❌ Character model loading failed:', event.detail);
+                            updateStatus(document.getElementById('ar-status'), 'キャラクターモデル読み込みエラー', 'error');
+                            gltfEntity.remove();
+                        });
+                        
+                        characterContainer.appendChild(gltfEntity);
+                        console.log('Character model entity created with MindAR');
+                    } else {
+                        console.log('No character model specified');
+                        updateStatus(document.getElementById('ar-status'), 'キャラクターなし', 'ok');
+                    }
+                }
+                
+            } catch (error) {
+                console.error('Error applying project settings:', error);
+                updateStatus(document.getElementById('ar-status'), '設定適用エラー', 'error');
+            }
+        }
+        
+        // AR表示回数をカウント
+        function incrementViewCount() {
+            const currentViews = parseInt(localStorage.getItem('ar-total-views') || '0');
+            localStorage.setItem('ar-total-views', (currentViews + 1).toString());
+            console.log('AR view count incremented:', currentViews + 1);
+        }
+        
+        // MindAR初期化とイベント処理
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log('🧠 MindAR Keyholder - AI-powered AR tracking');
+            
+            const arScene = document.querySelector('a-scene');
+            const markerAnchor = document.querySelector('#marker-anchor');
+            
+            // MindAR初期化完了イベント
+            arScene.addEventListener('renderstart', () => {
+                console.log('🚀 MindAR scene initialized');
+                loading.style.display = 'none';
+                statusOverlay.style.display = 'block';
+                instructions.style.display = 'block';
+                updateStatus(markerStatus, '検出待機中', 'warning');
+            });
+            
+            // マーカー検出イベント
+            markerAnchor.addEventListener('targetFound', () => {
+                console.log('🎯 MindAR marker detected - Character display!');
+                updateStatus(markerStatus, '検出中 - キャラクター表示!', 'ok');
+                updateStatus(visibilityStatus, 'キャラクター表示中!', 'ok');
+                
+                markerAnchor.setAttribute('visible', true);
+                
+                // キャラクターモデルに出現アニメーション
+                const characterModels = markerAnchor.querySelectorAll('a-gltf-model');
+                characterModels.forEach(model => {
+                    model.setAttribute('animation__appear', {
+                        property: 'scale',
+                        from: '0 0 0',
+                        to: model.getAttribute('scale'),
+                        dur: 800,
+                        easing: 'easeOutQuad'
+                    });
+                });
+            });
+            
+            markerAnchor.addEventListener('targetLost', () => {
+                console.log('MindAR marker lost');
+                updateStatus(markerStatus, '未検出 - マーカーを探しています', 'warning');
+                updateStatus(visibilityStatus, '待機中', 'warning');
+                markerAnchor.setAttribute('visible', false);
+            });
+            
+            // プロジェクトデータ読み込み
+            await loadProjectData();
+            incrementViewCount();
+            
+            console.log('MindAR setup complete - enhanced tracking ready!');
+        });
+    </script>
+</body>
+</html>

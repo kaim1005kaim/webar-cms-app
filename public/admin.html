@@ -111,8 +111,8 @@
             <a href="#" class="quick-action" onclick="showTab('create')">
                 🚀 新プロジェクト作成
             </a>
-            <a href="ar.html" target="_blank" class="quick-action">
-                📱 ARビューアー
+            <a href="#" class="quick-action" onclick="openARViewer()">
+                🧠 MindAR ビューアー
             </a>
             <a href="#" class="quick-action" onclick="exportData()">
                 💾 データエクスポート
@@ -153,23 +153,24 @@
                         </div>
                         
                         <div class="form-group">
-                            <label for="marker-image">マーカー画像</label>
+                            <label for="marker-image">カスタムマーカー画像</label>
                             <div class="upload-area" id="marker-upload">
                                 <p>📁 クリックまたはドラッグ&ドロップで画像をアップロード</p>
                                 <p><small>推奨: 高コントラスト、複雑なパターン、512x512px以上</small></p>
+                                <p><small style="color: #3498db;">🧠 MindAR.jsによる高精度AI認識対応</small></p>
                                 <input type="file" id="marker-image" accept="image/*" style="display: none;">
                             </div>
                         </div>
                         
                         <div class="form-group">
-                            <label for="character-model">3Dキャラクターモデル（物理キーホルダーの上に表示）</label>
+                            <label for="character-model">テンプレート3Dモデル</label>
                             <select id="character-model" name="characterModel">
-                                <option value="">キャラクターなし（物理キーホルダーのみ）</option>
-                                <option value="https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Duck/glTF-Binary/Duck.glb">アヒル (外部サンプル)</option>
-                                <option value="https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Box/glTF-Binary/Box.glb">キューブ (外部サンプル)</option>
-                                <option value="https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Avocado/glTF-Binary/Avocado.glb">アボカド (外部サンプル)</option>
-                                <option value="custom-upload">🆕 カスタムGLBをアップロード</option>
+                                <option value="">モデルなし</option>
+                                <option value="https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Duck/glTF-Binary/Duck.glb">アヒル</option>
+                                <option value="https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Box/glTF-Binary/Box.glb">キューブ</option>
+                                <option value="https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Avocado/glTF-Binary/Avocado.glb">アボカド</option>
                             </select>
+                            <small style="color: #666; display: block; margin-top: 5px;">テンプレートモデルまたはカスタムGLBファイルのどちらかを選択</small>
                         </div>
                         
                         <!-- GLBアップロード機能 - 常に表示 -->
@@ -193,11 +194,6 @@
                             </div>
                         </div>
                         
-                        <div class="form-group">
-                            <label for="character-scale">キャラクターサイズ</label>
-                            <input type="range" id="character-scale" name="scale" min="0.1" max="2.0" step="0.1" value="0.5">
-                            <span id="scale-value">0.5</span>
-                        </div>
                         
                         <button type="submit" class="btn btn-success">🚀 プロジェクト作成</button>
                     </form>
@@ -523,7 +519,16 @@
         }
         
         function viewAR(projectId) {
-            window.open(`./ar.html?project=${projectId}`, '_blank');
+            // MindARバージョンと従来版の選択
+            const useMindAR = confirm('高精度なMindAR版を使用しますか？\n\nOK: MindAR版（推奨）\nキャンセル: 従来版');
+            const arPage = useMindAR ? './ar-mindar.html' : './ar.html';
+            window.open(`${arPage}?project=${projectId}`, '_blank');
+        }
+        
+        function openARViewer() {
+            const useMindAR = confirm('高精度なMindAR版を使用しますか？\n\nOK: MindAR版（推奨）\nキャンセル: 従来版');
+            const arPage = useMindAR ? './ar-mindar.html' : './ar.html';
+            window.open(arPage, '_blank');
         }
         
         // ファイルアップロード
@@ -623,10 +628,6 @@
             }
         }
         
-        // スケール値更新
-        document.getElementById('character-scale').addEventListener('input', (e) => {
-            document.getElementById('scale-value').textContent = e.target.value;
-        });
         
         // プロジェクト作成（ローカルストレージ版）
         document.getElementById('create-project-form').addEventListener('submit', async (e) => {
@@ -664,12 +665,12 @@
                     },
                     character: {
                         modelUrl: formData.get('characterModel') || '',
-                        scale: window.savedPositionSettings ? window.savedPositionSettings.scale : parseFloat(formData.get('scale')),
+                        scale: window.savedPositionSettings ? window.savedPositionSettings.scale : 1,
                         position: window.savedPositionSettings ? [
                             window.savedPositionSettings.position.x,
                             window.savedPositionSettings.position.y,
                             window.savedPositionSettings.position.z
-                        ] : [0, 0.3, 0],  // 3Dプレビューで調整された位置または物理キーホルダーの上に配置
+                        ] : [0, 0, 0],  // 3Dプレビューで調整された位置
                         rotation: window.savedPositionSettings ? [
                             window.savedPositionSettings.rotation.x,
                             window.savedPositionSettings.rotation.y,
@@ -794,7 +795,6 @@
                     `;
                     uploadArea.dataset.uploadedUrl = '';
                     uploadArea.dataset.fileName = '';
-                    document.getElementById('scale-value').textContent = '0.5';
                     
                     // プロジェクト一覧タブに移動
                     showTab('projects');
