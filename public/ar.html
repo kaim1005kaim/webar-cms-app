@@ -77,10 +77,10 @@
     <!-- 使用方法 -->
     <div id="instructions">
         <strong>📖 使用方法:</strong><br>
-        1. <a href="https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/images/hiro.png" 
-              target="_blank" class="marker-link">Hiroマーカー</a>を表示<br>
+        1. 物理的なキーホルダーの柄、または<a href="https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/images/hiro.png" 
+              target="_blank" class="marker-link">Hiroマーカー</a>を用意<br>
         2. マーカーをカメラに向けてください<br>
-        3. 大きな3Dキーホルダーが表示されます！
+        3. キーホルダーの上に3Dキャラクターが表示されます！
     </div>
 
     <!-- AR.js Scene - 視認性最優先 -->
@@ -118,102 +118,32 @@
             raycaster="objects: .raycastable"
             cursor="rayOrigin: mouse">
             
-            <!-- 3Dキーホルダーオブジェクト - 完全中央配置 -->
-            <a-entity id="keyholder-object" position="0 0 0" rotation="0 0 0" scale="1 1 1">
+            <!-- キャラクターモデル表示エリア - 物理キーホルダー柄の上に表示 -->
+            <a-entity id="character-container" position="0 0 0" rotation="0 0 0" scale="1 1 1">
                 
-                <!-- 基準点（緑の球） - マーカー中心 -->
+                <!-- 基準点（緑の球） - マーカー中心確認用 -->
                 <a-sphere
+                    id="center-reference"
                     position="0 0 0"
-                    radius="0.03"
+                    radius="0.02"
                     color="#00ff00"
-                    material="emissive: #00ff00; emissiveIntensity: 2.0; transparent: true; opacity: 0.8;">
+                    material="emissive: #00ff00; emissiveIntensity: 2.0; transparent: true; opacity: 0.6;"
+                    visible="false">
                 </a-sphere>
                 
-                <!-- メインキーホルダーボディ - 中央から上に配置 -->
-                <a-box
-                    position="0 0.3 0"
-                    width="0.4"
-                    height="0.5"
-                    depth="0.15"
-                    color="#ff6b6b"
-                    material="color: #ff6b6b; roughness: 0.3; metalness: 0.5; emissive: #ff2222; emissiveIntensity: 0.2;"
-                    animation="property: rotation; to: 0 360 0; loop: true; dur: 10000">
-                    
-                    <!-- キャラクターの顔 -->
-                    <a-sphere
-                        position="0 0.15 0.1"
-                        radius="0.1"
-                        color="#ffeb3b"
-                        material="color: #ffeb3b; roughness: 0.8; metalness: 0.1; emissive: #ffff00; emissiveIntensity: 0.3;">
-                        
-                        <!-- 目 -->
-                        <a-sphere position="-0.03 0.025 0.075" radius="0.015" color="#000"></a-sphere>
-                        <a-sphere position="0.03 0.025 0.075" radius="0.015" color="#000"></a-sphere>
-                        
-                        <!-- 笑顔 -->
-                        <a-torus 
-                            position="0 -0.025 0.075" 
-                            radius="0.03" 
-                            radius-tubular="0.005" 
-                            rotation="0 0 0"
-                            color="#000"
-                            theta-start="0"
-                            theta-length="180">
-                        </a-torus>
-                    </a-sphere>
-                    
-                    <!-- 腕 -->
-                    <a-sphere position="-0.25 0 0" radius="0.05" color="#ffeb3b"></a-sphere>
-                    <a-sphere position="0.25 0 0" radius="0.05" color="#ffeb3b"></a-sphere>
-                </a-box>
-                
-                <!-- キーリング - 中央基準で調整 -->
-                <a-torus
-                    position="0 0.8 0"
-                    color="#c0c0c0"
-                    radius="0.2"
-                    radius-tubular="0.025"
-                    material="color: #c0c0c0; metalness: 1.0; roughness: 0.1; emissive: #888888; emissiveIntensity: 0.4;"
-                    animation="property: rotation; to: 360 0 0; loop: true; dur: 6000">
-                </a-torus>
-                
-                <!-- 接続チェーン - 中央基準で調整 -->
-                <a-entity id="chain">
-                    <a-cylinder position="0 0.7 0" radius="0.01" height="0.05" color="#c0c0c0"></a-cylinder>
-                    <a-cylinder position="0 0.65 0" radius="0.01" height="0.05" color="#c0c0c0"></a-cylinder>
-                    <a-cylinder position="0 0.6 0" radius="0.01" height="0.05" color="#c0c0c0"></a-cylinder>
-                    <a-cylinder position="0 0.55 0" radius="0.01" height="0.05" color="#c0c0c0"></a-cylinder>
-                </a-entity>
-                
-                <!-- デコレーション -->
-                <a-cylinder
-                    position="0.3 0.5 0"
-                    radius="0.03"
-                    height="0.1"
-                    color="#4ecdc4"
-                    material="color: #4ecdc4; metalness: 0.5; roughness: 0.3; emissive: #00cccc; emissiveIntensity: 0.3;"
-                    animation="property: position; to: 0.3 0.65 0; dir: alternate; loop: true; dur: 2000">
-                </a-cylinder>
-                
-                <a-cylinder
-                    position="-0.3 0.5 0"
-                    radius="0.03"
-                    height="0.1"
-                    color="#ffe66d"
-                    material="color: #ffe66d; metalness: 0.5; roughness: 0.3; emissive: #ffcc00; emissiveIntensity: 0.3;"
-                    animation="property: position; to: -0.3 0.65 0; dir: alternate; loop: true; dur: 2500">
-                </a-cylinder>
-                
-                <!-- テスト用の巨大な球（デバッグ） - 中央基準 -->
+                <!-- デバッグ用テストスフィア -->
                 <a-sphere
                     id="test-sphere"
-                    position="0 2.0 0"
-                    radius="0.2"
+                    position="0 1.5 0"
+                    radius="0.15"
                     color="#ff0000"
                     material="color: #ff0000; emissive: #ff0000; emissiveIntensity: 1.0;"
-                    animation="property: scale; to: 1.3 1.3 1.3; dir: alternate; loop: true; dur: 1000"
-                    visible="true">
+                    animation="property: scale; to: 1.2 1.2 1.2; dir: alternate; loop: true; dur: 1000"
+                    visible="false">
                 </a-sphere>
+                
+                <!-- キャラクターモデルがここに動的に追加される -->
+                
             </a-entity>
         </a-marker>
         
@@ -244,36 +174,28 @@
             
             const arScene = document.querySelector('a-scene');
             const marker = document.querySelector('#hiro-marker');
-            const keyholderObject = document.querySelector('#keyholder-object');
+            const characterContainer = document.querySelector('#character-container');
             const testSphere = document.querySelector('#test-sphere');
             
             // マーカー検出イベント
             marker.addEventListener('markerFound', () => {
-                console.log('🎯 Hiro marker detected - Making objects VISIBLE!');
-                updateStatus(markerStatus, '検出中 - 大きなオブジェクト表示!', 'ok');
-                updateStatus(visibilityStatus, '大きく表示中!', 'ok');
+                console.log('🎯 Hiro marker detected - Character display!');
+                updateStatus(markerStatus, '検出中 - キャラクター表示!', 'ok');
+                updateStatus(visibilityStatus, 'キャラクター表示中!', 'ok');
                 
-                // 強制的に可視化
-                keyholderObject.setAttribute('visible', true);
-                testSphere.setAttribute('visible', true);
+                // キャラクターコンテナを可視化
+                characterContainer.setAttribute('visible', true);
                 
-                // 強烈な出現アニメーション
-                keyholderObject.setAttribute('animation__appear', {
-                    property: 'scale',
-                    from: '0 0 0',
-                    to: '2 2 2',
-                    dur: 1000,
-                    easing: 'easeOutBounce'
-                });
-                
-                // テストスフィアの点滅
-                testSphere.setAttribute('animation__blink', {
-                    property: 'material.emissiveIntensity',
-                    from: '0.8',
-                    to: '1.5',
-                    dir: 'alternate',
-                    loop: true,
-                    dur: 500
+                // キャラクターモデルに出現アニメーション
+                const characterModels = characterContainer.querySelectorAll('a-gltf-model, a-sphere#test-sphere');
+                characterModels.forEach(model => {
+                    model.setAttribute('animation__appear', {
+                        property: 'scale',
+                        from: '0 0 0',
+                        to: '1 1 1',
+                        dur: 800,
+                        easing: 'easeOutBounce'
+                    });
                 });
             });
             
@@ -292,32 +214,39 @@
         
         // デバッグ用グローバル関数
         window.ARKeyholder = {
-            version: '3.2.0-center-fix',
+            version: '3.3.0-character-only',
             forceShow: () => {
-                const obj = document.querySelector('#keyholder-object');
-                obj.setAttribute('visible', true);
-                obj.setAttribute('scale', '3 3 3');
-                console.log('Forced visibility ON');
+                const container = document.querySelector('#character-container');
+                container.setAttribute('visible', true);
+                container.setAttribute('scale', '2 2 2');
+                console.log('Character container forced visible');
             },
             toggleTestSphere: () => {
                 const sphere = document.querySelector('#test-sphere');
-                sphere.setAttribute('visible', !sphere.getAttribute('visible'));
+                const isVisible = sphere.getAttribute('visible') === 'true';
+                sphere.setAttribute('visible', !isVisible);
+                console.log('Test sphere visibility:', !isVisible);
             },
-            centerObject: () => {
-                const obj = document.querySelector('#keyholder-object');
-                obj.setAttribute('position', '0 0 0');
-                obj.setAttribute('rotation', '0 0 0');
-                console.log('Object centered at marker origin');
+            showReference: () => {
+                const ref = document.querySelector('#center-reference');
+                ref.setAttribute('visible', true);
+                console.log('Center reference point visible');
+            },
+            centerCharacter: () => {
+                const container = document.querySelector('#character-container');
+                container.setAttribute('position', '0 0 0');
+                container.setAttribute('rotation', '0 0 0');
+                console.log('Character container centered at marker origin');
             },
             adjustPosition: (x, y, z) => {
-                const obj = document.querySelector('#keyholder-object');
-                obj.setAttribute('position', `${x} ${y} ${z}`);
-                console.log(`Position adjusted to: ${x}, ${y}, ${z}`);
+                const container = document.querySelector('#character-container');
+                container.setAttribute('position', `${x} ${y} ${z}`);
+                console.log(`Character position adjusted to: ${x}, ${y}, ${z}`);
             },
             getPosition: () => {
-                const obj = document.querySelector('#keyholder-object');
-                console.log('Current position:', obj.getAttribute('position'));
-                return obj.getAttribute('position');
+                const container = document.querySelector('#character-container');
+                console.log('Current character position:', container.getAttribute('position'));
+                return container.getAttribute('position');
             },
             loadProject: (projectId) => {
                 const url = new URL(window.location);
@@ -429,13 +358,9 @@
                     const modelUrl = projectData.character.modelUrl;
                     console.log('Loading character model:', modelUrl);
                     
-                    if (modelUrl !== 'keyholder-default') {
-                        // カスタムモデルを読み込み
-                        const keyholderObject = document.querySelector('#keyholder-object');
-                        
-                        // 既存のデフォルトオブジェクトを削除（非表示ではなく完全に除去）
-                        const defaultObjects = keyholderObject.querySelectorAll('a-box, a-sphere:not(#test-sphere), a-torus, a-cylinder, a-entity#chain');
-                        defaultObjects.forEach(obj => obj.remove());
+                    // keyholder-default以外のモデルのみ表示（物理キーホルダーの上にキャラクターを表示）
+                    if (modelUrl && modelUrl !== 'keyholder-default' && modelUrl !== '') {
+                        const characterContainer = document.querySelector('#character-container');
                         
                         // Base64データかURLかを判定
                         let modelSrc = modelUrl;
@@ -454,27 +379,32 @@
                         gltfEntity.setAttribute('src', modelSrc);
                         gltfEntity.setAttribute('position', projectData.character.position ? 
                             `${projectData.character.position[0]} ${projectData.character.position[1]} ${projectData.character.position[2]}` : 
-                            '0 0 0');
+                            '0 0.3 0');  // 物理キーホルダーの上に表示
                         gltfEntity.setAttribute('scale', `${projectData.character.scale || 1} ${projectData.character.scale || 1} ${projectData.character.scale || 1}`);
+                        gltfEntity.setAttribute('rotation', '0 0 0');
                         
                         // モデル読み込み完了イベント
                         gltfEntity.addEventListener('model-loaded', () => {
-                            console.log('✅ Custom GLB model loaded successfully');
-                            updateStatus(document.getElementById('ar-status'), `カスタムモデル読み込み完了: ${projectData.name}`, 'ok');
+                            console.log('✅ Character model loaded successfully');
+                            updateStatus(document.getElementById('ar-status'), `キャラクター読み込み完了: ${projectData.name}`, 'ok');
                         });
                         
                         // エラーハンドリング
                         gltfEntity.addEventListener('model-error', (event) => {
-                            console.error('❌ GLB model loading failed:', event.detail);
-                            updateStatus(document.getElementById('ar-status'), 'カスタムモデル読み込みエラー', 'error');
-                            // エラー時はデフォルトモデルを再作成
-                            console.warn('Creating fallback default model...');
+                            console.error('❌ Character model loading failed:', event.detail);
+                            updateStatus(document.getElementById('ar-status'), 'キャラクターモデル読み込みエラー', 'error');
                             gltfEntity.remove();
                         });
                         
-                        keyholderObject.appendChild(gltfEntity);
-                        console.log('Custom GLB model entity created:', modelSrc.substring(0, 100) + '...');
+                        characterContainer.appendChild(gltfEntity);
+                        console.log('Character model entity created:', modelSrc.substring(0, 100) + '...');
+                    } else {
+                        console.log('No character model specified or default keyholder selected');
+                        updateStatus(document.getElementById('ar-status'), 'キャラクターなし - 物理キーホルダーのみ', 'ok');
                     }
+                } else {
+                    console.log('No character data found');
+                    updateStatus(document.getElementById('ar-status'), 'キャラクターなし', 'ok');
                 }
                 
                 // プロジェクト情報を表示

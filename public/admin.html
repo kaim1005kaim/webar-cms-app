@@ -159,10 +159,9 @@
                         </div>
                         
                         <div class="form-group">
-                            <label for="character-model">3Dキャラクターモデル</label>
+                            <label for="character-model">3Dキャラクターモデル（物理キーホルダーの上に表示）</label>
                             <select id="character-model" name="characterModel">
-                                <option value="">モデルを選択...</option>
-                                <option value="keyholder-default">デフォルトキーホルダー (WebGPU最適化)</option>
+                                <option value="">キャラクターなし（物理キーホルダーのみ）</option>
                                 <option value="https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Duck/glTF-Binary/Duck.glb">アヒル (外部サンプル)</option>
                                 <option value="https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Box/glTF-Binary/Box.glb">キューブ (外部サンプル)</option>
                                 <option value="https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Avocado/glTF-Binary/Avocado.glb">アボカド (外部サンプル)</option>
@@ -543,9 +542,9 @@
                         isPublic: true
                     },
                     character: {
-                        modelUrl: formData.get('characterModel'),
+                        modelUrl: formData.get('characterModel') || '',
                         scale: parseFloat(formData.get('scale')),
-                        position: [0, 0.5, 0],
+                        position: [0, 0.3, 0],  // 物理キーホルダーの上に配置
                         animations: ['rotation']
                     },
                     marker: {
@@ -573,7 +572,7 @@
                         title: projectData.name,
                         description: projectData.metadata?.description || '',
                         image_url: projectData.marker?.imageUrl || '',
-                        model_url: finalModelUrl || 'keyholder-default'
+                        model_url: finalModelUrl || ''
                     };
                     
                     const response = await fetch(`${SUPABASE_URL}/rest/v1/projects`, {
@@ -996,13 +995,7 @@
             const currentValue = select.value;
             
             // プルダウンをクリア（最初のオプションは残す）
-            select.innerHTML = '<option value="">モデルを選択...</option>';
-            
-            // デフォルトキーホルダーオプションを追加
-            const defaultOption = document.createElement('option');
-            defaultOption.value = 'keyholder-default';
-            defaultOption.textContent = 'デフォルトキーホルダー (WebGPU最適化)';
-            select.appendChild(defaultOption);
+            select.innerHTML = '<option value="">キャラクターなし（物理キーホルダーのみ）</option>';
             
             // APIから取得したモデルを追加
             if (models && models.length > 0) {
