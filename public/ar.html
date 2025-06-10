@@ -44,14 +44,14 @@
             position: fixed;
             top: 20px;
             left: 20px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.8);
+            width: 280px;
+            background: rgba(0, 0, 0, 0.75);
             color: white;
-            padding: 15px;
-            border-radius: 10px;
+            padding: 8px;
+            border-radius: 6px;
             z-index: 1000;
-            max-width: 400px;
-            backdrop-filter: blur(10px);
+            backdrop-filter: blur(5px);
+            font-size: 11px;
         }
         
         #loading-screen {
@@ -99,39 +99,47 @@
             position: fixed;
             bottom: 20px;
             left: 20px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.8);
+            width: 200px;
+            background: rgba(0, 0, 0, 0.7);
             color: white;
-            padding: 15px;
-            border-radius: 10px;
-            text-align: center;
-            font-size: 14px;
-            backdrop-filter: blur(10px);
+            padding: 8px;
+            border-radius: 6px;
+            text-align: left;
+            font-size: 11px;
+            backdrop-filter: blur(5px);
+            z-index: 1000;
         }
         
         #position-controls {
             position: fixed;
-            bottom: 180px;
-            left: 20px;
+            bottom: 20px;
             right: 20px;
+            width: 180px;
             background: rgba(0, 0, 0, 0.8);
             color: white;
-            padding: 15px;
-            border-radius: 10px;
+            padding: 8px;
+            border-radius: 8px;
             text-align: center;
-            font-size: 12px;
+            font-size: 10px;
             display: none;
+            z-index: 1001;
         }
         
         .position-btn {
-            background: rgba(255, 255, 255, 0.2);
+            background: rgba(52, 152, 219, 0.8);
             border: 1px solid rgba(255, 255, 255, 0.3);
             color: white;
-            padding: 8px 12px;
-            margin: 2px;
-            border-radius: 5px;
-            font-size: 12px;
+            padding: 6px 8px;
+            margin: 1px;
+            border-radius: 4px;
+            font-size: 10px;
             cursor: pointer;
+            min-width: 26px;
+        }
+        
+        .position-btn:active {
+            background: rgba(41, 128, 185, 1);
+            transform: scale(0.95);
         }
         
         #center-crosshair {
@@ -203,25 +211,27 @@
             <button class="position-btn" onclick="adjustPosition('down')">↓</button>
             <button class="position-btn" onclick="adjustPosition('right')">→</button>
         </div>
-        <div style="margin: 5px 0;">
+        <div style="margin: 3px 0;">
             <button class="position-btn" onclick="adjustPosition('forward')">Z+</button>
             <button class="position-btn" onclick="adjustPosition('backward')">Z-</button>
             <button class="position-btn" onclick="resetPosition()" style="background: rgba(231, 76, 60, 0.8);">リセット</button>
         </div>
-        <div style="margin: 5px 0; font-size: 10px;">
-            <button class="position-btn" onclick="setPresetPosition('center')" style="font-size: 10px;">中央</button>
-            <button class="position-btn" onclick="setPresetPosition('elevated')" style="font-size: 10px;">上昇</button>
-            <button class="position-btn" onclick="setPresetPosition('forward')" style="font-size: 10px;">前進</button>
+        <div style="margin: 3px 0;">
+            <button class="position-btn" onclick="ensureObjectVisibility()" style="background: rgba(46, 204, 113, 0.8); font-size: 9px;">表示</button>
         </div>
-        <div id="debug-info" style="font-size: 10px; color: #bdc3c7; margin-top: 5px;">Pos: (0.000, 0.000, 0.000)</div>
+        <div style="margin: 3px 0; font-size: 9px;">
+            <button class="position-btn" onclick="setPresetPosition('center')" style="font-size: 9px; padding: 4px 6px;">中央</button>
+            <button class="position-btn" onclick="setPresetPosition('elevated')" style="font-size: 9px; padding: 4px 6px;">上</button>
+        </div>
+        <div id="debug-info" style="font-size: 8px; color: #bdc3c7; margin-top: 2px;">Pos: (0.000, 0.000, 0.000)</div>
     </div>
     
     <!-- 使用方法 -->
-    <div id="instructions" style="display: none;">
-        <strong>📖 位置調整方法:</strong><br>
-        1. マーカーを画面中央の十字線に合わせる<br>
-        2. 3Dオブジェクトがズレている場合は上の矢印ボタンで調整<br>
-        3. 「リセット」ボタンで初期位置に戻る
+    <div id="instructions">
+        <strong>📖 使い方:</strong><br>
+        1. マーカーを中央に<br>
+        2. 右下ボタンで調整<br>
+        3. リセットで初期化
     </div>
 
     <!-- WebGPU Canvas (overlay) -->
@@ -263,8 +273,8 @@
             raycaster="objects: .clickable"
             cursor="rayOrigin: mouse">
             
-            <!-- 3Dキーホルダーオブジェクト - 中央配置で精密調整 -->
-            <a-entity id="keyholder-object" position="0 0 0">
+            <!-- 3Dキーホルダーオブジェクト - 表示確実化 -->
+            <a-entity id="keyholder-object" position="0 0 0" visible="true">
                 
                 <!-- センター基準点（デバッグ用） -->
                 <a-sphere 
@@ -301,13 +311,14 @@
                 <!-- メインキーホルダーボディ -->
                 <a-box
                     id="main-body"
-                    position="0 0.35 0"
-                    width="0.4"
-                    height="0.6"
-                    depth="0.15"
+                    position="0 0.3 0"
+                    width="0.3"
+                    height="0.5"
+                    depth="0.1"
                     color="#e74c3c"
-                    material="roughness: 0.3; metalness: 0.7; emissive: #441111; emissiveIntensity: 0.1;"
-                    animation="property: rotation; to: 0 360 0; loop: true; dur: 10000; easing: linear">
+                    material="roughness: 0.4; metalness: 0.3;"
+                    animation="property: rotation; to: 0 360 0; loop: true; dur: 8000; easing: linear"
+                    visible="true">
                     
                     <!-- キャラクターの顔 -->
                     <a-sphere
@@ -537,19 +548,41 @@
             return false;
         }
         
+        // 3Dオブジェクト表示確実化関数
+        function ensureObjectVisibility() {
+            const keyholderObject = document.getElementById('keyholder-object');
+            const mainBody = document.getElementById('main-body');
+            const characterHead = document.getElementById('character-head');
+            const keyRing = document.getElementById('key-ring');
+            
+            if (keyholderObject) {
+                keyholderObject.setAttribute('visible', 'true');
+                console.log('Keyholder object visibility ensured');
+            }
+            
+            // 各コンポーネントの表示を強制的に有効化
+            [mainBody, characterHead, keyRing].forEach(element => {
+                if (element) {
+                    element.setAttribute('visible', 'true');
+                    // エミッシブ光を追加して見えやすくする
+                    const currentMaterial = element.getAttribute('material') || '';
+                    if (!currentMaterial.includes('emissive')) {
+                        element.setAttribute('material', currentMaterial + '; emissive: ' + element.getAttribute('color') + '; emissiveIntensity: 0.2;');
+                    }
+                }
+            });
+        }
+        
         // マスキング最適化関数
         function adjustRenderingOrder() {
-            // 3Dオブジェクトのレンダリング順序を調整してマスキング問題を解決
             const keyholderObject = document.getElementById('keyholder-object');
             const basePlatform = document.getElementById('base-platform');
             
             if (keyholderObject) {
-                // レンダリング順序を設定（低い値が先にレンダリング）
                 keyholderObject.setAttribute('material', 'depthTest: true; depthWrite: true;');
             }
             
             if (basePlatform) {
-                // ベース台座は最後にレンダリング
                 basePlatform.setAttribute('material', 'depthTest: false; depthWrite: false; renderOrder: 999;');
             }
         }
@@ -627,6 +660,9 @@
                     boundary.setAttribute('visible', 'true');
                 }
                 
+                // 3Dオブジェクトの表示を強制的に有効化
+                ensureObjectVisibility();
+                
                 // WebGPUレンダリングを通知
                 if (useWebGPU && webARApp) {
                     const markerMatrix = marker.object3D.matrixWorld.elements;
@@ -679,7 +715,14 @@
             statusOverlay.style.display = 'block';
             instructions.style.display = 'block';
             
-            console.log('🚀 Position-adjustable AR interface ready!');
+            // 5秒後に自動でステータスを非表示
+            setTimeout(() => {
+                if (statusOverlay.style.display !== 'none') {
+                    statusOverlay.style.display = 'none';
+                }
+            }, 5000);
+            
+            console.log('🚀 Enhanced AR interface ready!');
         }
         
         // iOS Safari用カメラアクセス最適化
