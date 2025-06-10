@@ -590,6 +590,15 @@ arjs="
                 window.location.href = url.toString();
             },
             
+            // iOS Safari用の追加調整ヘルパー
+            fineTuneCenter: (offsetX = -0.1) => {
+                console.log(`Fine-tuning center position with offset: ${offsetX}`);
+                ARKeyholder.adjustCharacter(offsetX, 0, 0);
+                ARKeyholder.showReferences();
+                console.log('Use ARKeyholder.fineTuneCenter(-0.15) for more left adjustment');
+                console.log('Use ARKeyholder.fineTuneCenter(-0.05) for less left adjustment');
+            },
+            
             autoCenter: () => {
                 console.log('Auto-centering for current device...');
                 const marker = document.querySelector('#hiro-marker');

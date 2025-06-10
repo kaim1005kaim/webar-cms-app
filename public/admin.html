@@ -174,7 +174,8 @@
                             <label for="glb-file">カスタムGLBファイル (.glb)</label>
                             <div class="upload-area" id="glb-upload-area">
                                 <p>📦 GLBファイルをドラッグ&ドロップまたはクリックしてアップロード</p>
-                                <p><small>推奨: 20MB以下、最適化済みモデル</small></p>
+                                <p><small>推奨: 5MB以下、最適化済みモデル</small></p>
+                                <p><small style="color: #f39c12;">⚠️ 大きなファイルはローカル保存のみ対応</small></p>
                                 <input type="file" id="glb-file" accept=".glb" style="display: none;">
                             </div>
                             <div id="glb-preview" style="display: none; margin-top: 10px;">
@@ -567,6 +568,12 @@
                         return;
                     }
                     
+                    // GLBファイルが大きすぎる場合はローカルストレージにフォールバック
+                    if (finalModelUrl && finalModelUrl.startsWith('data:') && finalModelUrl.length > 1024 * 1024) {
+                        console.warn('Large GLB file detected, saving to localStorage instead of Supabase');
+                        throw new Error('Large file - using localStorage fallback');
+                    }
+                    
                     // Supabase用のデータ形式に変換
                     const supabaseData = {
                         title: projectData.name,
@@ -575,11 +582,18 @@
                         model_url: finalModelUrl || ''
                     };
                     
+                    // タイムアウト付きでSupabaseリクエストを送信
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10秒タイムアウト
+                    
                     const response = await fetch(`${SUPABASE_URL}/rest/v1/projects`, {
                         method: 'POST',
                         headers: SUPABASE_HEADERS,
                         body: JSON.stringify(supabaseData),
+                        signal: controller.signal
                     });
+                    
+                    clearTimeout(timeoutId);
                     
                     if (response.ok) {
                         // Prefer: return=representation ヘッダーでデータが返される
@@ -594,11 +608,29 @@
                     }
                 } catch (apiError) {
                     console.warn('Supabase保存失敗、ローカルストレージにフォールバック:', apiError);
+                    
+                    // エラーの種類に応じてメッセージを変更
+                    let fallbackMessage = 'プロジェクトを作成しました（ローカル保存）';
+                    if (apiError.name === 'AbortError') {
+                        fallbackMessage = '大きなファイルのためローカル保存しました';
+                    } else if (apiError.message.includes('timeout')) {
+                        fallbackMessage = 'タイムアウトのためローカル保存しました';
+                    }
+                    
                     // フォールバック: ローカルストレージに保存
                     const projects = JSON.parse(localStorage.getItem('ar-projects') || '[]');
+                    
+                    // GLBファイルが大きい場合はmodel_urlを簡略化
+                    if (projectData.character && projectData.character.modelUrl && 
+                        projectData.character.modelUrl.startsWith('data:') && 
+                        projectData.character.modelUrl.length > 1024 * 1024) {
+                        projectData.character.modelUrl = 'large-glb-local-' + Date.now();
+                        console.log('Large GLB simplified for localStorage');
+                    }
+                    
                     projects.push(projectData);
                     localStorage.setItem('ar-projects', JSON.stringify(projects));
-                    showNotification('プロジェクトを作成しました（ローカル保存）', 'success');
+                    showNotification(fallbackMessage, 'warning');
                     saveSuccess = true;
                 }
                 
@@ -1088,8 +1120,8 @@
                     throw new Error('GLBファイルを選択してください');
                 }
                 
-                if (file.size > 20 * 1024 * 1024) { // 20MB制限
-                    throw new Error('ファイルサイズが大きすぎます（20MB以下にしてください）');
+                if (file.size > 5 * 1024 * 1024) { // 5MB制限に縮小
+                    throw new Error('ファイルサイズが大きすぎます（5MB以下にしてください）');
                 }
                 
                 // ファイル情報を表示
