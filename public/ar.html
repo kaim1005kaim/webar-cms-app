@@ -875,11 +875,89 @@
             return Promise.resolve(false);
         }
         
+        // プロジェクト設定読み込み
+        function loadProjectSettings() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const projectId = urlParams.get('project');
+            
+            if (projectId) {
+                console.log('Loading project:', projectId);
+                const projects = JSON.parse(localStorage.getItem('ar-projects') || '[]');
+                const project = projects.find(p => p.id === projectId);
+                
+                if (project) {
+                    console.log('Project found:', project);
+                    applyProjectSettings(project);
+                    return project;
+                } else {
+                    console.warn('Project not found:', projectId);
+                }
+            }
+            
+            console.log('Using default settings');
+            return null;
+        }
+        
+        // プロジェクト設定適用
+        function applyProjectSettings(project) {
+            // マーカー設定
+            if (project.marker?.imageUrl && project.marker.imageUrl !== './placeholder.svg') {
+                console.log('Applying custom marker');
+                // カスタムマーカーの場合はpattern属性を使用
+                const marker = document.getElementById('hiro-marker');
+                marker.removeAttribute('preset');
+                marker.setAttribute('type', 'pattern');
+                marker.setAttribute('url', project.marker.imageUrl);
+            }
+            
+            // 3Dモデル設定
+            const keyholderObject = document.getElementById('keyholder-object');
+            if (project.character?.modelUrl && project.character.modelUrl !== '') {
+                console.log('Loading custom 3D model:', project.character.modelUrl);
+                loadCustomModel(project.character.modelUrl, project.character.scale || 0.5);
+            }
+            
+            // スケール適用
+            if (project.character?.scale) {
+                const scale = project.character.scale;
+                keyholderObject.setAttribute('scale', `${scale} ${scale} ${scale}`);
+            }
+            
+            // 位置設定
+            if (project.character?.position) {
+                const pos = project.character.position;
+                keyholderObject.setAttribute('position', `${pos[0]} ${pos[1]} ${pos[2]}`);
+            }
+        }
+        
+        // カスタム3Dモデル読み込み
+        function loadCustomModel(modelUrl, scale = 0.5) {
+            const keyholderObject = document.getElementById('keyholder-object');
+            
+            if (modelUrl.includes('.glb') || modelUrl.includes('.gltf')) {
+                // GLTFモデルの場合
+                keyholderObject.innerHTML = `
+                    <a-gltf-model 
+                        src="${modelUrl}" 
+                        scale="${scale} ${scale} ${scale}"
+                        animation="property: rotation; to: 0 360 0; loop: true; dur: 10000"
+                        visible="true">
+                    </a-gltf-model>
+                `;
+            } else {
+                // デフォルトキーホルダーの場合
+                console.log('Using default keyholder model');
+            }
+        }
+        
         // 初期化開始
         document.addEventListener('DOMContentLoaded', async () => {
             console.log('🎯 AR Keyholder - iOS Safari Optimized Version');
             
             updateProgress(5, 'デバイス検出中...');
+            
+            // プロジェクト設定読み込み
+            const currentProject = loadProjectSettings();
             
             // iOS Safariでのカメラアクセス確認
             const cameraPermitted = await requestCameraPermission();
