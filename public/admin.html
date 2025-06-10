@@ -170,12 +170,12 @@
                             </select>
                         </div>
                         
-                        <!-- GLBアップロード機能 -->
-                        <div class="form-group" id="glb-upload-section" style="display: none;">
-                            <label for="glb-file">GLBファイル (.glb)</label>
+                        <!-- GLBアップロード機能 - 常に表示 -->
+                        <div class="form-group" id="glb-upload-section">
+                            <label for="glb-file">カスタムGLBファイル (.glb)</label>
                             <div class="upload-area" id="glb-upload-area">
                                 <p>📦 GLBファイルをドラッグ&ドロップまたはクリックしてアップロード</p>
-                                <p><small>推奨: 10MB以下、最適化済みモデル</small></p>
+                                <p><small>推奨: 20MB以下、最適化済みモデル</small></p>
                                 <input type="file" id="glb-file" accept=".glb" style="display: none;">
                             </div>
                             <div id="glb-preview" style="display: none; margin-top: 10px;">
@@ -559,10 +559,13 @@
                 // Supabaseに保存を試行
                 let saveSuccess = false;
                 try {
-                    // カスタムGLBが選択されている場合の処理
+                    // GLBファイルが準備されている場合はそれを使用、なければ選択されたモデル
                     let finalModelUrl = formData.get('characterModel');
-                    if (finalModelUrl === 'custom-upload' && uploadedGlbData) {
+                    if (uploadedGlbData) {
                         finalModelUrl = uploadedGlbData; // Base64データを保存
+                    } else if (finalModelUrl === 'custom-upload') {
+                        showNotification('GLBファイルをアップロードしてください', 'warning');
+                        return;
                     }
                     
                     // Supabase用のデータ形式に変換
@@ -723,18 +726,19 @@
         async function deleteProject(projectId) {
             if (confirm('このプロジェクトを削除しますか？')) {
                 try {
-                    // APIで削除を試行
-                    const response = await fetch(`/api/projects/${projectId}`, {
+                    // Supabaseから削除を試行
+                    const response = await fetch(`${SUPABASE_URL}/rest/v1/projects?id=eq.${projectId}`, {
                         method: 'DELETE',
+                        headers: SUPABASE_HEADERS
                     });
                     
                     if (response.ok) {
                         showNotification('プロジェクトを削除しました', 'success');
                     } else {
-                        throw new Error('API削除失敗');
+                        throw new Error('Supabase削除失敗');
                     }
-                } catch (apiError) {
-                    console.warn('API削除失敗、ローカルストレージから削除:', apiError);
+                } catch (supabaseError) {
+                    console.warn('Supabase削除失敗、ローカルストレージから削除:', supabaseError);
                     // フォールバック: ローカルストレージから削除
                     const projects = JSON.parse(localStorage.getItem('ar-projects') || '[]');
                     const filteredProjects = projects.filter(p => p.id !== projectId);
@@ -743,6 +747,7 @@
                 }
                 
                 await loadProjects();
+                await updateStats();
             }
         }
         
@@ -937,7 +942,11 @@
                     // Supabaseのデータをローカル形式に変換
                     const convertedProjects = supabaseProjects.map(p => ({
                         id: p.id,
-                        name: p.title,
+                        title: p.title,  // renderProjects関数で使用される
+                        name: p.title,   // 互換性のため
+                        description: p.description,
+                        image_url: p.image_url,
+                        model_url: p.model_url,
                         metadata: { description: p.description },
                         marker: { imageUrl: p.image_url },
                         created_at: p.created_at
@@ -1044,12 +1053,12 @@
         let uploadedGlbData = null;
         
         document.getElementById('character-model').addEventListener('change', function(e) {
-            const glbSection = document.getElementById('glb-upload-section');
-            if (e.target.value === 'custom-upload') {
-                glbSection.style.display = 'block';
-            } else {
-                glbSection.style.display = 'none';
+            // GLB upload section is now always visible
+            // Only clear the uploaded data if a predefined model is selected
+            if (e.target.value !== 'custom-upload' && e.target.value !== '') {
+                // Clear GLB data when switching to predefined models
                 uploadedGlbData = null;
+                document.getElementById('glb-preview').style.display = 'none';
             }
         });
         

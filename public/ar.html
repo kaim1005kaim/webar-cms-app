@@ -415,9 +415,9 @@
                         // カスタムモデルを読み込み
                         const keyholderObject = document.querySelector('#keyholder-object');
                         
-                        // 既存のデフォルトオブジェクトを非表示
-                        const defaultObjects = keyholderObject.querySelectorAll('a-box, a-sphere, a-torus, a-cylinder');
-                        defaultObjects.forEach(obj => obj.setAttribute('visible', false));
+                        // 既存のデフォルトオブジェクトを削除（非表示ではなく完全に除去）
+                        const defaultObjects = keyholderObject.querySelectorAll('a-box, a-sphere:not(#test-sphere), a-torus, a-cylinder, a-entity#chain');
+                        defaultObjects.forEach(obj => obj.remove());
                         
                         // Base64データかURLかを判定
                         let modelSrc = modelUrl;
@@ -449,8 +449,8 @@
                         gltfEntity.addEventListener('model-error', (event) => {
                             console.error('❌ GLB model loading failed:', event.detail);
                             updateStatus(document.getElementById('ar-status'), 'カスタムモデル読み込みエラー', 'error');
-                            // デフォルトモデルにフォールバック
-                            defaultObjects.forEach(obj => obj.setAttribute('visible', true));
+                            // エラー時はデフォルトモデルを再作成
+                            console.warn('Creating fallback default model...');
                             gltfEntity.remove();
                         });
                         
