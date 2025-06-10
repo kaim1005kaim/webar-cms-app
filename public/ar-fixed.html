@@ -26,6 +26,13 @@
             z-index: 1000;
             font-size: 12px;
             max-width: 250px;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        
+        #status.hidden {
+            opacity: 0;
+            transform: translateY(-20px);
+            pointer-events: none;
         }
         
         #controls {
@@ -38,6 +45,142 @@
             border-radius: 5px;
             z-index: 1000;
             text-align: center;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        
+        #controls.hidden {
+            opacity: 0;
+            transform: translateY(20px);
+            pointer-events: none;
+        }
+        
+        #settings-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(52, 73, 94, 0.9);
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            font-size: 20px;
+            cursor: pointer;
+            z-index: 1001;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+        
+        #settings-btn:hover {
+            background: rgba(52, 73, 94, 1);
+            transform: rotate(90deg);
+        }
+        
+        #settings-btn:active {
+            transform: rotate(90deg) scale(0.95);
+        }
+        
+        #settings-menu {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            z-index: 1000;
+            min-width: 200px;
+            opacity: 0;
+            transform: translateY(-10px);
+            pointer-events: none;
+            transition: all 0.3s ease;
+        }
+        
+        #settings-menu.visible {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: all;
+        }
+        
+        .menu-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .menu-item:last-child {
+            border-bottom: none;
+        }
+        
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 20px;
+        }
+        
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 20px;
+        }
+        
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .slider {
+            background-color: #3498db;
+        }
+        
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+        
+        #cms-btn {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(46, 204, 113, 0.9);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 25px;
+            font-size: 14px;
+            cursor: pointer;
+            z-index: 1001;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+        
+        #cms-btn:hover {
+            background: rgba(46, 204, 113, 1);
+            transform: translateY(-2px);
         }
         
         button {
@@ -61,6 +204,41 @@
     </style>
 </head>
 <body>
+    <!-- 設定ボタン -->
+    <button id="settings-btn" onclick="toggleSettings()">⚙️</button>
+    
+    <!-- CMSボタン -->
+    <button id="cms-btn" onclick="openCMS()">📊 CMS</button>
+    
+    <!-- 設定メニュー -->
+    <div id="settings-menu">
+        <div class="menu-item">
+            <span>ステータス表示</span>
+            <label class="toggle-switch">
+                <input type="checkbox" id="status-toggle" checked onchange="toggleStatus()">
+                <span class="slider"></span>
+            </label>
+        </div>
+        <div class="menu-item">
+            <span>位置コントロール</span>
+            <label class="toggle-switch">
+                <input type="checkbox" id="controls-toggle" checked onchange="toggleControls()">
+                <span class="slider"></span>
+            </label>
+        </div>
+        <div class="menu-item">
+            <span>デバッグモード</span>
+            <label class="toggle-switch">
+                <input type="checkbox" id="debug-toggle" onchange="toggleDebug()">
+                <span class="slider"></span>
+            </label>
+        </div>
+        <div class="menu-item" style="border: none; padding-top: 15px;">
+            <button onclick="resetAll()" style="width: 100%; background: #e74c3c; color: white; border: none; padding: 8px; border-radius: 5px;">全設定リセット</button>
+        </div>
+    </div>
+    
+    <!-- ステータス表示 -->
     <div id="status">
         <strong>🎯 AR Keyholder</strong><br>
         <span id="camera-status">📷 カメラ: 起動中...</span><br>
@@ -68,6 +246,7 @@
         <span id="object-status">🎁 オブジェクト: 準備中</span>
     </div>
     
+    <!-- 位置コントロール -->
     <div id="controls">
         <div style="margin-bottom: 5px;">
             <button onclick="moveObject('up')">↑</button><br>
@@ -77,7 +256,7 @@
             <button onclick="moveObject('down')">↓</button>
         </div>
         <button onclick="toggleVisibility()" style="background: #27ae60;">表示/非表示</button>
-        <button onclick="resetAll()" style="background: #e74c3c;">リセット</button>
+        <button onclick="resetPosition()" style="background: #f39c12;">位置リセット</button>
     </div>
 
     <!-- AR.js Scene - シンプルな設定 -->
@@ -164,9 +343,16 @@
         const cameraStatus = document.getElementById('camera-status');
         const markerStatus = document.getElementById('marker-status');
         const objectStatus = document.getElementById('object-status');
+        const statusDiv = document.getElementById('status');
+        const controlsDiv = document.getElementById('controls');
+        const settingsMenu = document.getElementById('settings-menu');
         
-        // 現在の位置
+        // 現在の位置と設定状態
         let currentPosition = { x: 0, y: 0, z: 0 };
+        let settingsVisible = false;
+        let statusVisible = true;
+        let controlsVisible = true;
+        let debugMode = false;
         
         // マーカー検出イベント
         marker.addEventListener('markerFound', () => {
@@ -228,12 +414,63 @@
             console.log('Visibility:', !isVisible);
         }
         
-        // リセット
+        // 設定メニュー切替
+        function toggleSettings() {
+            settingsVisible = !settingsVisible;
+            settingsMenu.classList.toggle('visible', settingsVisible);
+        }
+        
+        // ステータス表示切替
+        function toggleStatus() {
+            statusVisible = !statusVisible;
+            statusDiv.classList.toggle('hidden', !statusVisible);
+        }
+        
+        // コントロール表示切替
+        function toggleControls() {
+            controlsVisible = !controlsVisible;
+            controlsDiv.classList.toggle('hidden', !controlsVisible);
+        }
+        
+        // デバッグモード切替
+        function toggleDebug() {
+            debugMode = !debugMode;
+            console.log('Debug mode:', debugMode ? 'ON' : 'OFF');
+        }
+        
+        // CMSを開く
+        function openCMS() {
+            window.open('admin.html', '_blank');
+        }
+        
+        // 位置リセット
+        function resetPosition() {
+            currentPosition = { x: 0, y: 0, z: 0 };
+            updatePosition();
+            console.log('Position reset');
+        }
+        
+        // 全リセット
         function resetAll() {
             currentPosition = { x: 0, y: 0, z: 0 };
             updatePosition();
             keyholderGroup.setAttribute('visible', 'true');
-            console.log('Reset complete');
+            
+            // UI状態をリセット
+            statusVisible = true;
+            controlsVisible = true;
+            debugMode = false;
+            settingsVisible = false;
+            
+            statusDiv.classList.remove('hidden');
+            controlsDiv.classList.remove('hidden');
+            settingsMenu.classList.remove('visible');
+            
+            document.getElementById('status-toggle').checked = true;
+            document.getElementById('controls-toggle').checked = true;
+            document.getElementById('debug-toggle').checked = false;
+            
+            console.log('Complete reset');
         }
         
         // デバッグ情報
@@ -245,12 +482,38 @@
             console.log('✅ Scene loaded successfully');
             // 初期状態で表示
             keyholderGroup.setAttribute('visible', 'true');
+            
+            // 初期設定：コントロールを非表示
+            setTimeout(() => {
+                if (controlsVisible) {
+                    toggleControls();
+                    document.getElementById('controls-toggle').checked = false;
+                }
+            }, 3000);
+        });
+        
+        // 設定メニューを外クリックで閉じる
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#settings-menu') && !e.target.closest('#settings-btn')) {
+                settingsVisible = false;
+                settingsMenu.classList.remove('visible');
+            }
         });
         
         // エラーハンドリング
         window.addEventListener('error', (e) => {
-            console.error('Runtime error:', e.error);
+            if (debugMode) {
+                console.error('Runtime error:', e.error);
+            }
         });
+        
+        // 初期設定（5秒後にUIを自動非表示）
+        setTimeout(() => {
+            if (statusVisible) {
+                toggleStatus();
+                document.getElementById('status-toggle').checked = false;
+            }
+        }, 5000);
     </script>
 </body>
 </html>

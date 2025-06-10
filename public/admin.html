@@ -17,6 +17,32 @@
         .card-header { padding: 1.5rem; border-bottom: 1px solid #eee; }
         .card-content { padding: 1.5rem; }
         
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+        .stat-card { background: #f8f9fa; padding: 1.5rem; border-radius: 8px; text-align: center; }
+        .stat-number { font-size: 2rem; font-weight: bold; color: #3498db; }
+        .stat-label { color: #7f8c8d; font-size: 0.9rem; }
+        
+        .project-actions { display: flex; gap: 0.5rem; margin-top: 1rem; }
+        .btn-small { padding: 0.5rem 1rem; font-size: 0.8rem; }
+        
+        .upload-progress { width: 100%; height: 4px; background: #ecf0f1; border-radius: 2px; margin-top: 0.5rem; overflow: hidden; }
+        .upload-progress-bar { height: 100%; background: #3498db; width: 0%; transition: width 0.3s ease; }
+        
+        .notification { position: fixed; top: 20px; right: 20px; padding: 1rem 1.5rem; border-radius: 6px; color: white; z-index: 9999; transform: translateX(100%); transition: transform 0.3s ease; }
+        .notification.show { transform: translateX(0); }
+        .notification.success { background: #27ae60; }
+        .notification.error { background: #e74c3c; }
+        .notification.warning { background: #f39c12; }
+        
+        .model-preview { width: 100%; height: 200px; background: #ecf0f1; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #7f8c8d; margin-bottom: 1rem; }
+        
+        .quick-actions { display: flex; gap: 1rem; margin-bottom: 2rem; }
+        .quick-action { background: #3498db; color: white; padding: 1rem; border-radius: 8px; text-align: center; text-decoration: none; flex: 1; transition: background 0.3s ease; }
+        .quick-action:hover { background: #2980b9; color: white; }
+        
+        .loading { opacity: 0.6; pointer-events: none; }
+        .loading::after { content: 'Loading...'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        
         .btn { padding: 0.75rem 1.5rem; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
         .btn-primary { background: #3498db; color: white; }
         .btn-primary:hover { background: #2980b9; }
@@ -57,12 +83,46 @@
     </div>
     
     <div class="container">
+        <!-- スタッツカード -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number" id="total-projects">0</div>
+                <div class="stat-label">総プロジェクト数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="total-markers">0</div>
+                <div class="stat-label">マーカー数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="total-models">0</div>
+                <div class="stat-label">3Dモデル数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="ar-views">0</div>
+                <div class="stat-label">AR表示回数</div>
+            </div>
+        </div>
+        
+        <!-- クイックアクション -->
+        <div class="quick-actions">
+            <a href="#" class="quick-action" onclick="showTab('create')">
+                🚀 新プロジェクト作成
+            </a>
+            <a href="ar-fixed.html" target="_blank" class="quick-action">
+                📱 ARビューアー
+            </a>
+            <a href="#" class="quick-action" onclick="exportData()">
+                💾 データエクスポート
+            </a>
+        </div>
+        
         <div class="card">
             <div class="card-header">
                 <div class="tabs">
                     <div class="tab active" onclick="showTab('projects')">プロジェクト一覧</div>
                     <div class="tab" onclick="showTab('create')">新規作成</div>
                     <div class="tab" onclick="showTab('markers')">マーカー管理</div>
+                    <div class="tab" onclick="showTab('settings')">設定</div>
                 </div>
             </div>
             
@@ -123,10 +183,75 @@
             <!-- マーカー管理タブ -->
             <div id="markers-tab" class="tab-content">
                 <div class="card-content">
-                    <h3>📱 マーカー品質チェック</h3>
-                    <p>アップロードした画像のAR認識品質を確認できます。</p>
-                    <div id="marker-analysis" style="margin-top: 1rem;">
-                        <!-- マーカー解析結果が表示される -->
+                    <h3>📱 マーカー管理</h3>
+                    
+                    <div class="form-group">
+                        <label for="marker-upload-advanced">マーカー画像アップロード</label>
+                        <div class="upload-area" id="marker-upload-advanced">
+                            <p>📁 クリックまたはドラッグ&ドロップでアップロード</p>
+                            <input type="file" id="marker-file-advanced" accept="image/*" style="display: none;">
+                        </div>
+                        <div class="upload-progress" style="display: none;">
+                            <div class="upload-progress-bar"></div>
+                        </div>
+                    </div>
+                    
+                    <div id="marker-analysis">
+                        <h4>マーカー品質分析</h4>
+                        <div id="marker-quality-result" style="padding: 1rem; background: #f8f9fa; border-radius: 6px; margin-top: 1rem;">
+                            <p>マーカーをアップロードすると、AR認識品質を自動分析します。</p>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 2rem;">
+                        <h4>登録済みマーカー</h4>
+                        <div id="registered-markers">
+                            <!-- 登録済みマーカー一覧 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 設定タブ -->
+            <div id="settings-tab" class="tab-content">
+                <div class="card-content">
+                    <h3>⚙️ システム設定</h3>
+                    
+                    <div class="form-group">
+                        <label for="ar-quality">デフォルトAR品質</label>
+                        <select id="ar-quality">
+                            <option value="high">高品質（推奨）</option>
+                            <option value="medium">中品質</option>
+                            <option value="low">低品質（高速）</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="auto-hide-ui">UI自動非表示時間（秒）</label>
+                        <input type="number" id="auto-hide-ui" value="5" min="0" max="30">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="enable-analytics" checked>
+                            アナリティクスを有効にする
+                        </label>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="auto-backup" checked>
+                            データの自動バックアップ
+                        </label>
+                    </div>
+                    
+                    <div style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid #eee;">
+                        <h4>データ管理</h4>
+                        <div style="display: flex; gap: 1rem;">
+                            <button class="btn btn-primary" onclick="exportData()">💾 エクスポート</button>
+                            <button class="btn btn-success" onclick="importData()">📂 インポート</button>
+                            <button class="btn" onclick="clearAllData()" style="background: #e74c3c; color: white;">🗑️ 全データ削除</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -139,7 +264,14 @@
             document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
             
-            event.target.classList.add('active');
+            // クリックされたタブをアクティブに
+            if (event && event.target) {
+                event.target.classList.add('active');
+            } else {
+                // プログラムから呼び出された場合
+                document.querySelector(`[onclick="showTab('${tabName}')"]`).classList.add('active');
+            }
+            
             document.getElementById(tabName + '-tab').classList.add('active');
             
             if (tabName === 'projects') {
@@ -156,6 +288,25 @@
             } catch (error) {
                 console.error('プロジェクト読み込みエラー:', error);
             }
+        }
+        
+        function updateStats() {
+            const stats = {
+                totalProjects: 0,
+                totalMarkers: 0,
+                totalModels: 3, // デフォルトモデル数
+                arViews: Math.floor(Math.random() * 1000) // デモ用ランダム数
+            };
+            
+            // localStorageからデータを取得
+            const projects = JSON.parse(localStorage.getItem('ar-projects') || '[]');
+            stats.totalProjects = projects.length;
+            stats.totalMarkers = projects.length; // 1プロジェクトに1マーカー
+            
+            document.getElementById('total-projects').textContent = stats.totalProjects;
+            document.getElementById('total-markers').textContent = stats.totalMarkers;
+            document.getElementById('total-models').textContent = stats.totalModels;
+            document.getElementById('ar-views').textContent = stats.arViews;
         }
         
         function renderProjects(projects) {
@@ -182,9 +333,11 @@
                         <p>${project.metadata?.description || '説明なし'}</p>
                         <p><small>作成者: ${project.creator?.name || 'Unknown'}</small></p>
                         <p><small>作成日: ${new Date(project.created_at).toLocaleDateString()}</small></p>
-                        <div style="margin-top: 1rem;">
-                            <button class="btn btn-primary" onclick="viewAR('${project.id}')">📱 AR表示</button>
-                            <button class="btn btn-secondary" onclick="editProject('${project.id}')" style="margin-left: 0.5rem; background: #95a5a6;">✏️ 編集</button>
+                        <div class="project-actions">
+                            <button class="btn btn-primary btn-small" onclick="viewAR('${project.id}')">📱 AR表示</button>
+                            <button class="btn btn-small" onclick="editProject('${project.id}')" style="background: #95a5a6; color: white;">✏️ 編集</button>
+                            <button class="btn btn-small" onclick="duplicateProject('${project.id}')" style="background: #f39c12; color: white;">📋 複製</button>
+                            <button class="btn btn-small" onclick="deleteProject('${project.id}')" style="background: #e74c3c; color: white;">🗑️ 削除</button>
                         </div>
                     </div>
                 `;
@@ -244,73 +397,82 @@
             document.getElementById('scale-value').textContent = e.target.value;
         });
         
-        // プロジェクト作成
+        // プロジェクト作成（ローカルストレージ版）
         document.getElementById('create-project-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             
             const formData = new FormData(e.target);
+            const submitBtn = e.target.querySelector('button[type="submit"]');
             
-            // マーカー画像のアップロード処理
-            const markerFile = document.getElementById('marker-image').files[0];
-            let markerImageUrl = './placeholder.svg';
-            
-            if (markerFile) {
-                // 実際のアップロード処理（簡易版）
-                const reader = new FileReader();
-                markerImageUrl = await new Promise((resolve) => {
-                    reader.onload = (e) => resolve(e.target.result);
-                    reader.readAsDataURL(markerFile);
-                });
-            }
-            
-            const projectData = {
-                id: `project_${Date.now()}`,
-                name: formData.get('name'),
-                creator: {
-                    userId: 'admin',
-                    name: 'Administrator'
-                },
-                metadata: {
-                    description: formData.get('description'),
-                    tags: [],
-                    isPublic: true
-                },
-                character: {
-                    modelUrl: formData.get('characterModel'),
-                    scale: parseFloat(formData.get('scale')),
-                    position: [0, 0.5, 0],
-                    animations: ['rotation']
-                },
-                marker: {
-                    imageUrl: markerImageUrl,
-                    nftDescriptor: `./markers/${formData.get('name').replace(/\s+/g, '_').toLowerCase()}`,
-                    printTemplate: 'A4'
-                },
-                created_at: new Date().toISOString()
-            };
+            // ボタンをローディング状態に
+            submitBtn.disabled = true;
+            submitBtn.textContent = '作成中...';
             
             try {
-                const response = await fetch('/api/projects', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(projectData)
-                });
+                // マーカー画像のアップロード処理
+                const markerFile = document.getElementById('marker-image').files[0];
+                let markerImageUrl = './placeholder.svg';
                 
-                if (response.ok) {
-                    alert('✅ プロジェクトが作成されました！');
-                    document.getElementById('create-project-form').reset();
-                    uploadArea.innerHTML = `
-                        <p>📁 クリックまたはドラッグ&ドロップで画像をアップロード</p>
-                        <p><small>推奨: 高コントラスト、複雑なパターン、512x512px以上</small></p>
-                    `;
-                    showTab('projects');
-                } else {
-                    const errorData = await response.json();
-                    alert(`❌ プロジェクト作成に失敗しました: ${errorData.error?.message || '不明なエラー'}`);
+                if (markerFile) {
+                    // Base64でエンコード
+                    const reader = new FileReader();
+                    markerImageUrl = await new Promise((resolve) => {
+                        reader.onload = (e) => resolve(e.target.result);
+                        reader.readAsDataURL(markerFile);
+                    });
                 }
+                
+                const projectData = {
+                    id: `project_${Date.now()}`,
+                    name: formData.get('name'),
+                    creator: {
+                        userId: 'admin',
+                        name: 'Administrator'
+                    },
+                    metadata: {
+                        description: formData.get('description'),
+                        tags: [],
+                        isPublic: true
+                    },
+                    character: {
+                        modelUrl: formData.get('characterModel'),
+                        scale: parseFloat(formData.get('scale')),
+                        position: [0, 0.5, 0],
+                        animations: ['rotation']
+                    },
+                    marker: {
+                        imageUrl: markerImageUrl,
+                        nftDescriptor: `./markers/${formData.get('name').replace(/\s+/g, '_').toLowerCase()}`,
+                        printTemplate: 'A4'
+                    },
+                    created_at: new Date().toISOString()
+                };
+                
+                // ローカルストレージに保存
+                const projects = JSON.parse(localStorage.getItem('ar-projects') || '[]');
+                projects.push(projectData);
+                localStorage.setItem('ar-projects', JSON.stringify(projects));
+                
+                showNotification('プロジェクトを作成しました！', 'success');
+                
+                // フォームリセット
+                document.getElementById('create-project-form').reset();
+                uploadArea.innerHTML = `
+                    <p>📁 クリックまたはドラッグ&ドロップで画像をアップロード</p>
+                    <p><small>推奨: 高コントラスト、複雑なパターン、512x512px以上</small></p>
+                `;
+                document.getElementById('scale-value').textContent = '0.5';
+                
+                // プロジェクト一覧タブに移動
+                showTab('projects');
+                
             } catch (error) {
                 console.error('プロジェクト作成エラー:', error);
-                alert('❌ エラーが発生しました');
+                showNotification('プロジェクト作成に失敗しました', 'error');
+            } finally {
+                // ボタンを元に戻す
+                submitBtn.disabled = false;
+                submitBtn.textContent = '🚀 プロジェクト作成';
             }
         });
         
@@ -329,6 +491,121 @@
             
             document.body.appendChild(webgpuStatus);
             setTimeout(() => webgpuStatus.remove(), 3000);
+        }
+        
+        // 通知表示関数
+        function showNotification(message, type = 'success') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => notification.classList.add('show'), 100);
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+        
+        // プロジェクト管理関数
+        function editProject(projectId) {
+            showNotification('プロジェクト編集機能は開発中です', 'warning');
+        }
+        
+        function duplicateProject(projectId) {
+            const projects = JSON.parse(localStorage.getItem('ar-projects') || '[]');
+            const project = projects.find(p => p.id === projectId);
+            if (project) {
+                const newProject = {
+                    ...project,
+                    id: `project_${Date.now()}`,
+                    name: project.name + ' (コピー)',
+                    created_at: new Date().toISOString()
+                };
+                projects.push(newProject);
+                localStorage.setItem('ar-projects', JSON.stringify(projects));
+                loadProjects();
+                showNotification('プロジェクトを複製しました', 'success');
+            }
+        }
+        
+        function deleteProject(projectId) {
+            if (confirm('このプロジェクトを削除しますか？')) {
+                const projects = JSON.parse(localStorage.getItem('ar-projects') || '[]');
+                const filteredProjects = projects.filter(p => p.id !== projectId);
+                localStorage.setItem('ar-projects', JSON.stringify(filteredProjects));
+                loadProjects();
+                showNotification('プロジェクトを削除しました', 'success');
+            }
+        }
+        
+        // データ管理関数
+        function exportData() {
+            const data = {
+                projects: JSON.parse(localStorage.getItem('ar-projects') || '[]'),
+                settings: JSON.parse(localStorage.getItem('ar-settings') || '{}'),
+                exportDate: new Date().toISOString()
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `ar-keyholder-backup-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            showNotification('データをエクスポートしました', 'success');
+        }
+        
+        function importData() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            const data = JSON.parse(e.target.result);
+                            if (data.projects) {
+                                localStorage.setItem('ar-projects', JSON.stringify(data.projects));
+                            }
+                            if (data.settings) {
+                                localStorage.setItem('ar-settings', JSON.stringify(data.settings));
+                            }
+                            loadProjects();
+                            showNotification('データをインポートしました', 'success');
+                        } catch (error) {
+                            showNotification('ファイルの読み込みに失敗しました', 'error');
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+            };
+            input.click();
+        }
+        
+        function clearAllData() {
+            if (confirm('全テーダを削除しますか？この操作は元に戻せません。')) {
+                localStorage.removeItem('ar-projects');
+                localStorage.removeItem('ar-settings');
+                loadProjects();
+                showNotification('全データを削除しました', 'success');
+            }
+        }
+        
+        // ローカルストレージ版loadProjects
+        async function loadProjects() {
+            try {
+                const projects = JSON.parse(localStorage.getItem('ar-projects') || '[]');
+                renderProjects(projects);
+                updateStats();
+            } catch (error) {
+                console.error('プロジェクト読み込みエラー:', error);
+                showNotification('プロジェクトの読み込みに失敗しました', 'error');
+            }
         }
         
         // 初期読み込み
