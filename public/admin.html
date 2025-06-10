@@ -178,7 +178,7 @@
                             <div class="upload-area" id="glb-upload-area">
                                 <p>📦 GLBファイルをドラッグ&ドロップまたはクリックしてアップロード</p>
                                 <p><small>推奨: 20MB以下、最適化済みモデル</small></p>
-                                <p><small style="color: #27ae60;">✅ 20MBまでSupabase対応、それ以上はローカル保存</small></p>
+                                <p><small style="color: #27ae60;">✅ 元ファイル15MBまでSupabase対応、それ以上はローカル保存</small></p>
                                 <input type="file" id="glb-file" accept=".glb" style="display: none;">
                             </div>
                             <!-- GLBファイル情報とプレビュー -->
@@ -492,6 +492,9 @@
                         <h3>${project.title}</h3>
                         <p>${project.description || '説明なし'}</p>
                         <p><small>作成日: ${new Date(project.created_at).toLocaleDateString()}</small></p>
+                        <p><small style="color: ${project.source === 'supabase' ? '#27ae60' : '#f39c12'};">
+                            💾 ${project.source === 'supabase' ? 'クラウド保存' : 'ローカル保存'}
+                        </small></p>
                         <div style="margin: 10px 0; text-align: center;">
                             <div style="background: #f8f9fa; padding: 10px; border-radius: 6px; margin-bottom: 10px;">
                                 <div style="font-size: 12px; color: #666; margin-bottom: 5px;">📱 ARアクセス用QRコード</div>
@@ -695,9 +698,15 @@
                     }
                     
                     // GLBファイルが大きすぎる場合はローカルストレージにフォールバック
-                    if (finalModelUrl && finalModelUrl.startsWith('data:') && finalModelUrl.length > 20 * 1024 * 1024) {
-                        console.warn('Large GLB file detected, saving to localStorage instead of Supabase');
-                        throw new Error('Large file - using localStorage fallback');
+                    if (finalModelUrl && finalModelUrl.startsWith('data:')) {
+                        const base64Size = finalModelUrl.length;
+                        const fileSizeMB = (base64Size / (1024 * 1024)).toFixed(2);
+                        console.log(`Base64 encoded file size: ${fileSizeMB}MB`);
+                        
+                        if (base64Size > 25 * 1024 * 1024) { // 25MBに拡大（Base64膨張を考慮）
+                            console.warn(`Large GLB file detected (${fileSizeMB}MB), saving to localStorage instead of Supabase`);
+                            throw new Error('Large file - using localStorage fallback');
+                        }
                     }
                     
                     // Supabase用のデータ形式に変換（3Dプレビュー設定も含む）
@@ -1118,13 +1127,28 @@
                         model_url: p.model_url,
                         metadata: { description: p.description },
                         marker: { imageUrl: p.image_url },
-                        created_at: p.created_at
+                        created_at: p.created_at,
+                        source: 'supabase' // データソースを明記
                     }));
                     
-                    console.log('Converted projects:', convertedProjects);
-                    renderProjects(convertedProjects);
+                    // ローカルストレージのプロジェクトも追加（ハイブリッド表示）
+                    const localProjects = JSON.parse(localStorage.getItem('ar-projects') || '[]')
+                        .map(p => ({...p, source: 'localStorage'}));
+                    
+                    // マージして重複を除去
+                    const allProjects = [...convertedProjects];
+                    localProjects.forEach(localProject => {
+                        if (!allProjects.find(p => p.id === localProject.id)) {
+                            allProjects.push(localProject);
+                        }
+                    });
+                    
+                    console.log('All projects (Supabase + Local):', allProjects);
+                    renderProjects(allProjects);
                     updateStats();
-                    showNotification(`Supabaseから${convertedProjects.length}個のプロジェクトを読み込みました`, 'success');
+                    const supabaseCount = convertedProjects.length;
+                    const localCount = localProjects.length;
+                    showNotification(`プロジェクト読み込み完了: Supabase(${supabaseCount}) + ローカル(${localCount})`, 'success');
                 } else {
                     throw new Error(`Supabase API error: ${response.status}`);
                 }
