@@ -31,16 +31,21 @@
                 });
             },
             
-            tick: function () {
-                // マーカーが検出されている間、毎フレーム同期
-                if (this.isMarkerVisible && this.characterContainer) {
-                    // マーカーの座標系に完全に合わせる
-                    this.characterContainer.object3D.position.set(0, 0, 0);
-                    this.characterContainer.object3D.rotation.set(0, 0, 0);
-                    this.characterContainer.object3D.scale.set(1, 1, 1);
+            tick: function (time, timeDelta) {
+                // パフォーマンス向上のため、フレーム間隔をチェック
+                if (!this.lastTick || timeDelta > 16) { // 約60FPS制限
+                    this.lastTick = time;
                     
-                    // ワールド行列も強制更新
-                    this.characterContainer.object3D.updateMatrixWorld(true);
+                    // マーカーが検出されている間のみ同期
+                    if (this.isMarkerVisible && this.characterContainer) {
+                        // マーカーの座標系に完全に合わせる
+                        this.characterContainer.object3D.position.set(0, 0, 0);
+                        this.characterContainer.object3D.rotation.set(0, 0, 0);
+                        this.characterContainer.object3D.scale.set(1, 1, 1);
+                        
+                        // ワールド行列も強制更新
+                        this.characterContainer.object3D.updateMatrixWorld(true);
+                    }
                 }
             }
         });
@@ -126,7 +131,7 @@
     <a-scene
         id="ar-scene"
         vr-mode-ui="enabled: false"
-        renderer="logarithmicDepthBuffer: true; colorManagement: true; antialias: true; alpha: true; sortObjects: true; physicallyCorrectLights: true; precision: highp;"
+        renderer="logarithmicDepthBuffer: true; colorManagement: true; antialias: true; alpha: true; sortObjects: true; physicallyCorrectLights: true;"
         embedded
         arjs="
             trackingMethod: best; 
@@ -141,11 +146,6 @@
             maxDetectionRate: 60;
             canvasWidth: 640;
             canvasHeight: 480;
-            positionRatioAccuracy: 1000;
-            minConfidence: 0.6;
-            labelingMode: black_region;
-            patternRatio: 0.8;
-            imageSmoothingEnabled: false;
         "
         loading-screen="enabled: false">
         
@@ -153,13 +153,10 @@
         <a-marker 
             preset="hiro" 
             id="hiro-marker"
-            markerWidth="0.08"
             smooth="true"
-            smoothCount="3"
-            smoothTolerance="0.005"
-            smoothThreshold="1"
-            raycaster="objects: .raycastable"
-            cursor="rayOrigin: mouse"
+            smoothCount="5"
+            smoothTolerance="0.01"
+            smoothThreshold="2"
             markerhandler>
             
             <!-- キャラクターモデル表示エリア - 物理キーホルダー柄の上に表示 -->
@@ -172,7 +169,7 @@
                     radius="0.03"
                     color="#00ff00"
                     material="emissive: #00ff00; emissiveIntensity: 3.0; transparent: true; opacity: 0.9;"
-                    visible="true">
+                    visible="false">
                 </a-sphere>
                 
                 <!-- デバッグ用テストスフィア -->
@@ -183,7 +180,7 @@
                     color="#ff0000"
                     material="color: #ff0000; emissive: #ff0000; emissiveIntensity: 1.0;"
                     animation="property: scale; to: 1.2 1.2 1.2; dir: alternate; loop: true; dur: 1000"
-                    visible="true">
+                    visible="false">
                 </a-sphere>
                 
                 <!-- キャラクターモデルがここに動的に追加される -->
@@ -197,11 +194,7 @@
         <a-light type="point" position="0 2 1" color="#ffffff" intensity="0.8"></a-light>
         
         <!-- カメラ -->
-        <a-entity 
-            camera
-            look-controls="enabled: false"
-            wasd-controls="enabled: false"
-            cursor="rayOrigin: mouse"></entity>
+        <a-entity camera></a-entity>
     </a-scene>
 
     <script>
@@ -262,7 +255,7 @@
         
         // デバッグ用グローバル関数
         window.ARKeyholder = {
-            version: '3.4.0-perfect-center',
+            version: '3.5.0-stability-fix',
             forceCenter: () => {
                 const container = document.querySelector('#character-container');
                 container.object3D.position.set(0, 0, 0);
@@ -349,6 +342,24 @@
                     }
                 };
                 testNext();
+            },
+            checkMarkerStatus: () => {
+                const marker = document.querySelector('#hiro-marker');
+                const arScene = document.querySelector('a-scene');
+                console.log('=== MARKER STATUS ===');
+                console.log('Marker element:', marker);
+                console.log('AR scene:', arScene);
+                console.log('Marker visible:', marker ? marker.object3D.visible : 'No marker');
+                console.log('AR.js initialized:', window.THREEx && window.THREEx.ArToolkitContext ? 'Yes' : 'No');
+                return {
+                    hasMarker: !!marker,
+                    hasArScene: !!arScene,
+                    markerVisible: marker ? marker.object3D.visible : false
+                };
+            },
+            resetAR: () => {
+                console.log('Attempting AR reset...');
+                location.reload();
             },
             loadProject: (projectId) => {
                 const url = new URL(window.location);
