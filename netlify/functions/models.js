@@ -1,15 +1,50 @@
 const fs = require('fs').promises;
 const path = require('path');
 
-const MODELS_FILE = path.join(__dirname, '../../models.json');
+// Netlify Functionsでは、ファイルは関数と同じディレクトリにデプロイされる
+const MODELS_FILE = process.env.LAMBDA_TASK_ROOT 
+  ? path.join(process.env.LAMBDA_TASK_ROOT, 'models.json')
+  : path.join(__dirname, '../../models.json');
 
 async function readModels() {
   try {
+    console.log('Attempting to read models from:', MODELS_FILE);
     const data = await fs.readFile(MODELS_FILE, 'utf-8');
-    return JSON.parse(data);
+    const parsed = JSON.parse(data);
+    console.log('Successfully read models:', parsed.models?.length || 0, 'models');
+    return parsed;
   } catch (error) {
-    console.error('Error reading models file:', error);
-    return { models: [] };
+    console.error('Error reading models file:', error.message);
+    console.error('Full error:', error);
+    // デフォルトのモデルデータを返す
+    return {
+      models: [
+        {
+          id: 'model001',
+          title: 'キューブサンプル',
+          description: 'WebARで表示されるテスト用キューブモデルです',
+          model_url: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Box/glTF-Binary/Box.glb',
+          thumbnail_url: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Box/screenshot/screenshot.png',
+          created_at: '2025-06-10T00:00:00Z'
+        },
+        {
+          id: 'model002',
+          title: 'アヒルモデル',
+          description: 'glTFサンプルのアヒルモデル',
+          model_url: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Duck/glTF-Binary/Duck.glb',
+          thumbnail_url: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Duck/screenshot/screenshot.png',
+          created_at: '2025-06-10T00:00:00Z'
+        },
+        {
+          id: 'model003',
+          title: 'オリジナルキャラクター',
+          description: 'カスタムキャラクターモデル',
+          model_url: '/models/chara.glb',
+          thumbnail_url: '/models/chara-thumbnail.jpg',
+          created_at: '2025-06-10T12:00:00Z'
+        }
+      ]
+    };
   }
 }
 
@@ -38,9 +73,12 @@ exports.handler = async (event, context) => {
     };
   }
 
-  const path = event.path.replace('/.netlify/functions/', '');
-  const segments = path.split('/');
-  const modelId = segments[1];
+  // パスから関数名を削除して、正しいセグメントを取得
+  console.log('Original path:', event.path);
+  const functionPath = event.path.replace('/.netlify/functions/models', '').replace('/api/models', '');
+  const segments = functionPath.split('/').filter(Boolean);
+  const modelId = segments[0];
+  console.log('Function path:', functionPath, 'Model ID:', modelId);
 
   try {
     switch (event.httpMethod) {
