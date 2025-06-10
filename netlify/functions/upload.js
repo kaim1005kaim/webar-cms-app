@@ -1,20 +1,5 @@
-const fs = require('fs').promises;
-const path = require('path');
-const crypto = require('crypto');
-
-// マーカー画像保存用のディレクトリ
-const MARKERS_DIR = process.env.LAMBDA_TASK_ROOT 
-  ? path.join(process.env.LAMBDA_TASK_ROOT, 'markers')
-  : path.join(__dirname, '../../public/markers');
-
-async function ensureMarkersDir() {
-  try {
-    await fs.access(MARKERS_DIR);
-  } catch (error) {
-    // ディレクトリが存在しない場合は作成
-    await fs.mkdir(MARKERS_DIR, { recursive: true });
-  }
-}
+// Netlify Functionsでは書き込み可能ディレクトリが限られているため、
+// Base64データを処理してプロジェクトデータに含める方式を採用
 
 exports.handler = async (event, context) => {
   const headers = {
@@ -43,64 +28,51 @@ exports.handler = async (event, context) => {
   try {
     console.log('Upload request received');
     
-    // Content-Typeがmultipart/form-dataかapplication/jsonかチェック
-    const contentType = event.headers['content-type'] || event.headers['Content-Type'] || '';
+    // JSON形式でBase64データを受信
+    const body = JSON.parse(event.body || '{}');
+    const { fileName, fileData, projectName } = body;
     
-    if (contentType.includes('application/json')) {
-      // JSON形式でBase64データを受信
-      const body = JSON.parse(event.body);
-      const { fileName, fileData, projectName } = body;
-      
-      if (!fileName || !fileData) {
-        return {
-          statusCode: 400,
-          headers,
-          body: JSON.stringify({ error: 'fileName and fileData are required' }),
-        };
-      }
-
-      // Base64データをデコード
-      const base64Data = fileData.replace(/^data:image\/[a-z]+;base64,/, '');
-      const buffer = Buffer.from(base64Data, 'base64');
-      
-      // ファイル名を安全化
-      const fileExtension = path.extname(fileName);
-      const baseName = (projectName || 'marker').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
-      const timestamp = Date.now();
-      const uniqueFileName = `${baseName}_${timestamp}${fileExtension}`;
-      
-      // マーカーディレクトリの確保
-      await ensureMarkersDir();
-      
-      // ファイル保存
-      const filePath = path.join(MARKERS_DIR, uniqueFileName);
-      await fs.writeFile(filePath, buffer);
-      
-      // 公開URL生成
-      const publicUrl = `/markers/${uniqueFileName}`;
-      
-      console.log(`Marker image saved: ${uniqueFileName}`);
-      
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({
-          success: true,
-          fileName: uniqueFileName,
-          url: publicUrl,
-          message: 'Marker image uploaded successfully'
-        }),
-      };
-    } else {
-      // 現在のところJSON形式のみサポート
+    if (!fileName || !fileData) {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ 
-          error: 'Only JSON format with base64 data is supported' 
-        }),
+        body: JSON.stringify({ error: 'fileName and fileData are required' }),
       };
     }
+
+    // Base64データの検証
+    if (!fileData.startsWith('data:image/')) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: 'Invalid image data format' }),
+      };
+    }
+    
+    // ファイル名を安全化
+    const timestamp = Date.now();
+    const randomId = Math.random().toString(36).substr(2, 9);
+    const baseName = (projectName || 'marker').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+    const fileExtension = fileName.split('.').pop() || 'png';
+    const uniqueFileName = `${baseName}_${timestamp}_${randomId}.${fileExtension}`;
+    
+    // Netlify Functionsでは物理ファイルを保存できないため、
+    // Base64データをそのまま返して、プロジェクトデータに含める
+    const virtualUrl = `data:marker/${uniqueFileName}`;
+    
+    console.log(`Marker image processed: ${uniqueFileName}`);
+    
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
+        success: true,
+        fileName: uniqueFileName,
+        url: virtualUrl,
+        data: fileData, // Base64データを含める
+        message: 'Marker image processed successfully'
+      }),
+    };
 
   } catch (error) {
     console.error('Upload error:', error);

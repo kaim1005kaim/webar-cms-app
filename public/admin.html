@@ -439,11 +439,14 @@
                     uploadArea.innerHTML = `
                         <img src="${base64Data}" style="max-width: 100%; max-height: 200px; border-radius: 8px;">
                         <p style="color: #28a745; margin-top: 10px;">✅ ${result.fileName} アップロード完了</p>
-                        <small style="color: #6c757d;">サーバーURL: ${result.url}</small>
+                        <small style="color: #6c757d;">処理済み: ${result.message}</small>
                     `;
-                    uploadArea.dataset.uploadedUrl = result.url;
+                    // Base64データを保存（物理ファイルの代わり）
+                    uploadArea.dataset.uploadedUrl = base64Data;
+                    uploadArea.dataset.fileName = result.fileName;
                 } else {
-                    throw new Error('サーバーアップロードに失敗しました');
+                    const errorData = await uploadResponse.json();
+                    throw new Error(`サーバーエラー: ${errorData.error || 'Unknown error'}`);
                 }
                 
             } catch (error) {
@@ -481,10 +484,8 @@
                 
                 // アップロードされていない場合のチェック
                 if (!uploadArea.dataset.uploadedUrl) {
-                    const markerFileInput = document.getElementById('marker-image');
-                    if (markerFileInput && markerFileInput.files.length > 0) {
-                        throw new Error('マーカー画像をアップロードしてください（ドラッグ&ドロップまたはクリックで選択）');
-                    }
+                    showNotification('マーカー画像をアップロードしてください', 'warning');
+                    return;
                 }
                 
                 const projectData = {
