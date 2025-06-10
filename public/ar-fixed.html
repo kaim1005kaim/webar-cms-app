@@ -270,7 +270,7 @@
         <a-marker preset="hiro" id="marker">
             
             <!-- キーホルダーグループ -->
-            <a-entity id="keyholder-group" position="0 0 0">
+            <a-entity id="keyholder-group" position="0 0 0" visible="true">
                 
                 <!-- メインボディ（赤い箱） -->
                 <a-box
@@ -280,6 +280,7 @@
                     height="0.8"
                     depth="0.2"
                     color="#e74c3c"
+                    visible="true"
                     animation="property: rotation; to: 0 360 0; loop: true; dur: 10000">
                 </a-box>
                 
@@ -288,21 +289,24 @@
                     id="head"
                     position="0 0.9 0.15"
                     radius="0.15"
-                    color="#f1c40f">
+                    color="#f1c40f"
+                    visible="true">
                 </a-sphere>
                 
                 <!-- 目（左） -->
                 <a-sphere
                     position="-0.05 0.95 0.25"
                     radius="0.03"
-                    color="#000">
+                    color="#000"
+                    visible="true">
                 </a-sphere>
                 
                 <!-- 目（右） -->
                 <a-sphere
                     position="0.05 0.95 0.25"
                     radius="0.03"
-                    color="#000">
+                    color="#000"
+                    visible="true">
                 </a-sphere>
                 
                 <!-- キーリング（シルバー） -->
@@ -313,6 +317,7 @@
                     radius="0.2"
                     radius-tubular="0.02"
                     rotation="90 0 0"
+                    visible="true"
                     animation="property: rotation; to: 90 360 0; loop: true; dur: 8000">
                 </a-torus>
                 
@@ -361,6 +366,15 @@
             objectStatus.innerHTML = '🎁 オブジェクト: <span class="status-ok">表示中</span>';
             // オブジェクトを確実に表示
             keyholderGroup.setAttribute('visible', 'true');
+            
+            // 全ての子要素も強制的に表示
+            const allElements = keyholderGroup.querySelectorAll('*');
+            allElements.forEach(el => {
+                el.setAttribute('visible', 'true');
+                console.log('Element made visible:', el.tagName, el.id || el.className);
+            });
+            
+            console.log('All objects forced visible on marker detection');
         });
         
         marker.addEventListener('markerLost', () => {
@@ -482,6 +496,12 @@
             console.log('✅ Scene loaded successfully');
             // 初期状態で表示
             keyholderGroup.setAttribute('visible', 'true');
+            
+            // 全ての子要素も強制的に表示
+            const allElements = keyholderGroup.querySelectorAll('*');
+            allElements.forEach(el => {
+                el.setAttribute('visible', 'true');
+            });
             
             // 初期設定：コントロールを非表示
             setTimeout(() => {
