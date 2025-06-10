@@ -1,0 +1,44 @@
+{
+  "projects": [
+    {
+      "id": "project001",
+      "name": "サンプルキーホルダー",
+      "creator": {
+        "userId": "user001",
+        "name": "デモユーザー"
+      },
+      "marker": {
+        "imageUrl": "./markers/sample-pattern.jpg",
+        "nftDescriptor": "./markers/sample-pattern",
+        "printTemplate": "./templates/sample-print.pdf"
+      },
+      "character": {
+        "modelUrl": "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Duck/glTF-Binary/Duck.glb",
+        "scale": 0.5,
+        "position": [0, 0.5, 0],
+        "animations": ["idle", "wave"]
+      },
+      "metadata": {
+        "description": "AR技術デモ用のサンプルキーホルダー",
+        "tags": ["demo", "sample", "duck"],
+        "isPublic": true
+      },
+      "created_at": "2025-06-10T00:00:00Z"
+    }
+  ],
+  "markers": [
+    {
+      "id": "marker001",
+      "projectId": "project001",
+      "name": "サンプルパターン",
+      "imageUrl": "./markers/sample-pattern.jpg",
+      "nftData": "./markers/sample-pattern",
+      "trackingQuality": "good",
+      "printRecommendations": {
+        "minSize": "3cm x 3cm",
+        "dpi": 300,
+        "contrast": "high"
+      }
+    }
+  ]
+}

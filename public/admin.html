@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARキーホルダー管理画面</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; }
+        
+        .header { background: #2c3e50; color: white; padding: 1rem 2rem; }
+        .header h1 { font-size: 1.5rem; }
+        
+        .container { max-width: 1200px; margin: 2rem auto; padding: 0 2rem; }
+        
+        .card { background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 2rem; }
+        .card-header { padding: 1.5rem; border-bottom: 1px solid #eee; }
+        .card-content { padding: 1.5rem; }
+        
+        .btn { padding: 0.75rem 1.5rem; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
+        .btn-primary { background: #3498db; color: white; }
+        .btn-primary:hover { background: #2980b9; }
+        .btn-success { background: #27ae60; color: white; }
+        .btn-success:hover { background: #229954; }
+        
+        .form-group { margin-bottom: 1.5rem; }
+        .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 600; }
+        .form-group input, .form-group textarea, .form-group select { 
+            width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem;
+        }
+        .form-group textarea { height: 100px; resize: vertical; }
+        
+        .projects-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; }
+        .project-card { border: 1px solid #ddd; border-radius: 8px; overflow: hidden; }
+        .project-card img { width: 100%; height: 200px; object-fit: cover; }
+        .project-card-content { padding: 1rem; }
+        .project-card h3 { margin-bottom: 0.5rem; }
+        .project-card p { color: #666; font-size: 0.9rem; margin-bottom: 1rem; }
+        
+        .tabs { display: flex; border-bottom: 1px solid #ddd; }
+        .tab { padding: 1rem 2rem; cursor: pointer; border-bottom: 2px solid transparent; }
+        .tab.active { border-bottom-color: #3498db; color: #3498db; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        .upload-area { 
+            border: 2px dashed #ddd; border-radius: 8px; padding: 2rem; text-align: center;
+            cursor: pointer; transition: border-color 0.3s;
+        }
+        .upload-area:hover { border-color: #3498db; }
+        .upload-area.dragover { border-color: #27ae60; background: #f8fff9; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔑 ARキーホルダー管理画面</h1>
+    </div>
+    
+    <div class="container">
+        <div class="card">
+            <div class="card-header">
+                <div class="tabs">
+                    <div class="tab active" onclick="showTab('projects')">プロジェクト一覧</div>
+                    <div class="tab" onclick="showTab('create')">新規作成</div>
+                    <div class="tab" onclick="showTab('markers')">マーカー管理</div>
+                </div>
+            </div>
+            
+            <!-- プロジェクト一覧タブ -->
+            <div id="projects-tab" class="tab-content active">
+                <div class="card-content">
+                    <div class="projects-grid" id="projects-list">
+                        <!-- プロジェクトカードが動的に生成される -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 新規作成タブ -->
+            <div id="create-tab" class="tab-content">
+                <div class="card-content">
+                    <form id="create-project-form">
+                        <div class="form-group">
+                            <label for="project-name">プロジェクト名</label>
+                            <input type="text" id="project-name" name="name" required placeholder="例: 猫のキーホルダー">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="project-description">説明</label>
+                            <textarea id="project-description" name="description" placeholder="プロジェクトの説明を入力"></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="marker-image">マーカー画像</label>
+                            <div class="upload-area" id="marker-upload">
+                                <p>📁 クリックまたはドラッグ&ドロップで画像をアップロード</p>
+                                <p><small>推奨: 高コントラスト、複雑なパターン、512x512px以上</small></p>
+                                <input type="file" id="marker-image" accept="image/*" style="display: none;">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="character-model">3Dキャラクターモデル</label>
+                            <select id="character-model" name="characterModel">
+                                <option value="">モデルを選択...</option>
+                                <option value="https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Duck/glTF-Binary/Duck.glb">アヒル</option>
+                                <option value="https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Box/glTF-Binary/Box.glb">キューブ</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="character-scale">キャラクターサイズ</label>
+                            <input type="range" id="character-scale" name="scale" min="0.1" max="2.0" step="0.1" value="0.5">
+                            <span id="scale-value">0.5</span>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-success">🚀 プロジェクト作成</button>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- マーカー管理タブ -->
+            <div id="markers-tab" class="tab-content">
+                <div class="card-content">
+                    <h3>📱 マーカー品質チェック</h3>
+                    <p>アップロードした画像のAR認識品質を確認できます。</p>
+                    <div id="marker-analysis" style="margin-top: 1rem;">
+                        <!-- マーカー解析結果が表示される -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // タブ切り替え
+        function showTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tabName + '-tab').classList.add('active');
+            
+            if (tabName === 'projects') {
+                loadProjects();
+            }
+        }
+        
+        // プロジェクト一覧読み込み
+        async function loadProjects() {
+            try {
+                const response = await fetch('/api/projects');
+                const projects = await response.json();
+                renderProjects(projects);
+            } catch (error) {
+                console.error('プロジェクト読み込みエラー:', error);
+            }
+        }
+        
+        function renderProjects(projects) {
+            const container = document.getElementById('projects-list');
+            container.innerHTML = '';
+            
+            projects.forEach(project => {
+                const card = document.createElement('div');
+                card.className = 'project-card';
+                card.innerHTML = `
+                    <img src="${project.marker.imageUrl || './placeholder.svg'}" alt="${project.name}">
+                    <div class="project-card-content">
+                        <h3>${project.name}</h3>
+                        <p>${project.metadata.description || '説明なし'}</p>
+                        <button class="btn btn-primary" onclick="viewAR('${project.id}')">📱 AR表示</button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+        
+        function viewAR(projectId) {
+            window.open(`./ar.html?project=${projectId}`, '_blank');
+        }
+        
+        // ファイルアップロード
+        const uploadArea = document.getElementById('marker-upload');
+        const fileInput = document.getElementById('marker-image');
+        
+        uploadArea.addEventListener('click', () => fileInput.click());
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleImageUpload(files[0]);
+            }
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleImageUpload(e.target.files[0]);
+            }
+        });
+        
+        function handleImageUpload(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                uploadArea.innerHTML = `
+                    <img src="${e.target.result}" style="max-width: 100%; max-height: 200px;">
+                    <p>✅ 画像アップロード完了</p>
+                `;
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        // スケール値更新
+        document.getElementById('character-scale').addEventListener('input', (e) => {
+            document.getElementById('scale-value').textContent = e.target.value;
+        });
+        
+        // プロジェクト作成
+        document.getElementById('create-project-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const projectData = {
+                name: formData.get('name'),
+                metadata: {
+                    description: formData.get('description'),
+                    isPublic: true
+                },
+                character: {
+                    modelUrl: formData.get('characterModel'),
+                    scale: parseFloat(formData.get('scale')),
+                    position: [0, 0.5, 0],
+                    animations: []
+                },
+                marker: {
+                    imageUrl: './markers/uploaded-marker.jpg', // 実際はアップロード処理が必要
+                    nftDescriptor: './markers/uploaded-marker'
+                }
+            };
+            
+            try {
+                const response = await fetch('/api/projects', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(projectData)
+                });
+                
+                if (response.ok) {
+                    alert('✅ プロジェクトが作成されました！');
+                    showTab('projects');
+                } else {
+                    alert('❌ プロジェクト作成に失敗しました');
+                }
+            } catch (error) {
+                console.error('プロジェクト作成エラー:', error);
+                alert('❌ エラーが発生しました');
+            }
+        });
+        
+        // 初期読み込み
+        loadProjects();
+    </script>
+</body>
+</html>

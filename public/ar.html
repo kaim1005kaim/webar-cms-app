@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>AR Keyholder - Netlify</title>
+    <!-- CDNから直接読み込み（Netlifyで安定） -->
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/aframe/build/aframe-ar.js"></script>
+    <style>
+        body { 
+            margin: 0; 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; 
+            overflow: hidden; 
+            background: #000;
+        }
+        
+        #ar-scene { 
+            width: 100vw; 
+            height: 100vh; 
+        }
+        
+        #status-overlay {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            z-index: 1000;
+            max-width: 400px;
+            backdrop-filter: blur(10px);
+        }
+        
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            text-align: center;
+        }
+        
+        .status-item {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+        
+        .status-ok { color: #4ade80; }
+        .status-error { color: #f87171; }
+        .status-warning { color: #fbbf24; }
+        
+        .progress-bar {
+            width: 200px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: #4ade80;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        #instructions {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 14px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .marker-link {
+            color: #60a5fa;
+            text-decoration: none;
+            margin-top: 10px;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <!-- ローディング画面 -->
+    <div id="loading-screen">
+        <h2>AR Keyholder</h2>
+        <p>カメラとARシステムを初期化中...</p>
+        <div class="progress-bar">
+            <div class="progress-fill" id="progress"></div>
+        </div>
+        <div id="loading-status">初期化中...</div>
+    </div>
+    
+    <!-- ステータス表示 -->
+    <div id="status-overlay" style="display: none;">
+        <h3>🎯 AR Keyholder</h3>
+        <div class="status-item" id="camera-status">📷 カメラ: 初期化中</div>
+        <div class="status-item" id="ar-status">🔍 AR: 待機中</div>
+        <div class="status-item" id="marker-status">📍 マーカー: 未検出</div>
+        <div class="status-item" id="netlify-status">🌐 Netlify: <span class="status-ok">接続済み</span></div>
+    </div>
+    
+    <!-- 使用方法 -->
+    <div id="instructions" style="display: none;">
+        <strong>📖 使用方法:</strong><br>
+        1. カメラ権限を許可してください<br>
+        2. <a href="https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/images/hiro.png" 
+              target="_blank" class="marker-link">Hiroマーカー</a>を印刷<br>
+        3. マーカーをカメラに向けてください
+    </div>
+
+    <!-- AR.js Scene -->
+    <a-scene
+        id="ar-scene"
+        vr-mode-ui="enabled: false"
+        renderer="logarithmicDepthBuffer: true; colorManagement: true; antialias: true; alpha: true;"
+        embedded
+        arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3; cameraParametersUrl: https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/data/data/camera_para.dat;"
+        loading-screen="enabled: false">
+        
+        <!-- Hiroマーカー -->
+        <a-marker 
+            preset="hiro" 
+            id="hiro-marker"
+            smooth="true"
+            smoothCount="10"
+            smoothTolerance="0.01"
+            smoothThreshold="5">
+            
+            <!-- キーホルダー風の3Dオブジェクト -->
+            <a-entity id="keyholder-object">
+                <!-- メインリング -->
+                <a-torus
+                    position="0 0.5 0"
+                    color="#c0c0c0"
+                    radius="0.8"
+                    radius-tubular="0.05"
+                    material="metalness: 0.8; roughness: 0.2;"
+                    animation="property: rotation; to: 0 360 0; loop: true; dur: 20000">
+                </a-torus>
+                
+                <!-- キャラクターボディ -->
+                <a-box
+                    position="0 0 0"
+                    width="0.6"
+                    height="0.8"
+                    depth="0.2"
+                    color="#ff6b6b"
+                    material="metalness: 0.3; roughness: 0.4;"
+                    animation="property: rotation; to: 360 0 0; loop: true; dur: 12000">
+                    
+                    <!-- 顔 -->
+                    <a-sphere
+                        position="0 0.25 0.15"
+                        radius="0.15"
+                        color="#ffeb3b"
+                        material="metalness: 0.1; roughness: 0.8;">
+                        
+                        <!-- 目 -->
+                        <a-sphere position="-0.05 0.05 0.1" radius="0.02" color="#000"></a-sphere>
+                        <a-sphere position="0.05 0.05 0.1" radius="0.02" color="#000"></a-sphere>
+                        
+                        <!-- 口 -->
+                        <a-box position="0 -0.05 0.1" width="0.06" height="0.01" depth="0.01" color="#000"></a-box>
+                    </a-sphere>
+                </a-box>
+                
+                <!-- アクセサリー（動くパーツ） -->
+                <a-cylinder
+                    position="0.6 0 0"
+                    radius="0.08"
+                    height="0.3"
+                    color="#4ecdc4"
+                    material="metalness: 0.5; roughness: 0.3;"
+                    animation="property: position; to: 0.6 0.3 0; dir: alternate; loop: true; dur: 2000">
+                </a-cylinder>
+                
+                <a-cylinder
+                    position="-0.6 0 0"
+                    radius="0.08"
+                    height="0.3"
+                    color="#ffe66d"
+                    material="metalness: 0.5; roughness: 0.3;"
+                    animation="property: position; to: -0.6 0.3 0; dir: alternate; loop: true; dur: 2500">
+                </a-cylinder>
+                
+                <!-- チェーン効果 -->
+                <a-entity id="chain">
+                    <a-sphere position="0 0.8 0" radius="0.03" color="#c0c0c0"></a-sphere>
+                    <a-sphere position="0 0.9 0" radius="0.03" color="#c0c0c0"></a-sphere>
+                    <a-sphere position="0 1.0 0" radius="0.03" color="#c0c0c0"></a-sphere>
+                </a-entity>
+            </a-entity>
+        </a-marker>
+        
+        <!-- ライティング -->
+        <a-light type="ambient" color="#ffffff" intensity="0.4"></a-light>
+        <a-light type="directional" position="0 1 1" color="#ffffff" intensity="0.6"></a-light>
+        
+        <!-- カメラ -->
+        <a-entity camera></a-entity>
+    </a-scene>
+
+    <script>
+        // Netlify環境の検出
+        const isNetlify = window.location.hostname.includes('netlify') || 
+                         window.location.hostname.includes('.app');
+        
+        // DOM要素
+        const loadingScreen = document.getElementById('loading-screen');
+        const statusOverlay = document.getElementById('status-overlay');
+        const instructions = document.getElementById('instructions');
+        const progress = document.getElementById('progress');
+        const loadingStatus = document.getElementById('loading-status');
+        
+        const cameraStatus = document.getElementById('camera-status');
+        const arStatus = document.getElementById('ar-status');
+        const markerStatus = document.getElementById('marker-status');
+        const netlifyStatus = document.getElementById('netlify-status');
+        
+        // 初期化状態
+        let initStep = 0;
+        const maxSteps = 4;
+        
+        // プログレス更新
+        function updateProgress(step, message) {
+            initStep = step;
+            const percentage = (step / maxSteps) * 100;
+            progress.style.width = percentage + '%';
+            loadingStatus.textContent = message;
+        }
+        
+        // ステータス更新
+        function updateStatus(element, message, type = 'ok') {
+            element.innerHTML = element.innerHTML.split(':')[0] + ': ' + 
+                `<span class="status-${type}">${message}</span>`;
+        }
+        
+        // カメラ初期化チェック
+        async function initializeCamera() {
+            updateProgress(1, 'カメラアクセス権限を確認中...');
+            
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { 
+                        facingMode: 'environment',
+                        width: { ideal: 1280, min: 640 },
+                        height: { ideal: 720, min: 480 }
+                    }
+                });
+                
+                updateStatus(cameraStatus, 'アクセス許可済み', 'ok');
+                updateProgress(2, 'カメラが利用可能です');
+                
+                // テストストリームを停止
+                stream.getTracks().forEach(track => track.stop());
+                return true;
+            } catch (error) {
+                console.error('Camera error:', error);
+                updateStatus(cameraStatus, 'アクセス拒否またはエラー', 'error');
+                updateProgress(2, 'カメラエラー: ' + error.message);
+                return false;
+            }
+        }
+        
+        // AR.js初期化
+        function initializeAR() {
+            updateProgress(3, 'AR.jsを初期化中...');
+            
+            const scene = document.querySelector('a-scene');
+            const marker = document.querySelector('#hiro-marker');
+            
+            // AR.jsイベントリスナー
+            scene.addEventListener('arjs-video-loaded', () => {
+                console.log('AR.js video loaded successfully');
+                updateStatus(arStatus, 'カメラ映像取得成功', 'ok');
+                updateProgress(4, 'AR初期化完了！');
+                
+                // UI表示
+                setTimeout(() => {
+                    loadingScreen.style.display = 'none';
+                    statusOverlay.style.display = 'block';
+                    instructions.style.display = 'block';
+                }, 1000);
+            });
+            
+            scene.addEventListener('camera-error', (event) => {
+                console.error('AR.js camera error:', event.detail);
+                updateStatus(arStatus, 'カメラエラー', 'error');
+                updateProgress(3, 'ARカメラの初期化に失敗');
+            });
+            
+            // マーカー検出イベント
+            marker.addEventListener('markerFound', () => {
+                console.log('Hiro marker detected');
+                updateStatus(markerStatus, '検出中 - キーホルダー表示', 'ok');
+            });
+            
+            marker.addEventListener('markerLost', () => {
+                console.log('Hiro marker lost');
+                updateStatus(markerStatus, '未検出', 'warning');
+            });
+        }
+        
+        // Netlify環境情報表示
+        function showNetlifyInfo() {
+            if (isNetlify) {
+                updateStatus(netlifyStatus, 'デプロイ済み', 'ok');
+            } else {
+                updateStatus(netlifyStatus, 'ローカル環境', 'warning');
+            }
+        }
+        
+        // メイン初期化
+        async function initialize() {
+            console.log('Initializing AR Keyholder on Netlify...');
+            console.log('User Agent:', navigator.userAgent);
+            console.log('HTTPS:', location.protocol === 'https:');
+            console.log('Host:', window.location.hostname);
+            
+            showNetlifyInfo();
+            
+            // カメラ初期化
+            const cameraOK = await initializeCamera();
+            
+            if (cameraOK) {
+                // AR初期化
+                initializeAR();
+                
+                // タイムアウト設定（15秒）
+                setTimeout(() => {
+                    if (initStep < maxSteps) {
+                        updateProgress(initStep, 'タイムアウト - ページを再読み込みしてください');
+                        updateStatus(arStatus, '初期化タイムアウト', 'error');
+                    }
+                }, 15000);
+            } else {
+                updateProgress(2, 'カメラアクセスが必要です');
+                setTimeout(() => {
+                    loadingScreen.style.display = 'none';
+                    statusOverlay.style.display = 'block';
+                    instructions.style.display = 'block';
+                }, 2000);
+            }
+        }
+        
+        // 初期化開始
+        document.addEventListener('DOMContentLoaded', initialize);
+        
+        // デバッグ情報（Netlify用）
+        window.ARKeyholder = {
+            version: '1.0.0',
+            environment: isNetlify ? 'netlify' : 'local',
+            debug: !isNetlify
+        };
+    </script>
+</body>
+</html>

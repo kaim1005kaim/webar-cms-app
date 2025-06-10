@@ -1,0 +1,89 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+  functions = "netlify/functions"
+
+[[redirects]]
+  from = "/api/models"
+  to = "/.netlify/functions/models"
+  status = 200
+
+[[redirects]]
+  from = "/api/models/*"
+  to = "/.netlify/functions/models/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/api/projects"
+  to = "/.netlify/functions/projects"
+  status = 200
+
+[[redirects]]
+  from = "/api/projects/*"
+  to = "/.netlify/functions/projects/:splat"
+  status = 200
+
+# ARアプリ用の明示的なリダイレクト（SPAフォールバックより前に配置）
+[[redirects]]
+  from = "/ar"
+  to = "/ar.html"
+  status = 200
+
+[[redirects]]
+  from = "/admin"
+  to = "/admin.html"
+  status = 200
+
+# 静的ファイルは除外してSPAフォールバック
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  conditions = {Role = ["admin"], Country = ["!ar.html", "!admin.html", "!*.js", "!*.css", "!*.png", "!*.jpg", "!*.glb", "!*.gltf", "!*.wasm"]}
+  force = false
+
+# カメラ権限とセキュリティヘッダー
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+# ARページ専用のPermissions-Policy
+[[headers]]
+  for = "/ar.html"
+  [headers.values]
+    Permissions-Policy = "camera=(self), microphone=(), geolocation=(), accelerometer=(self), gyroscope=(self), magnetometer=(self)"
+    Feature-Policy = "camera 'self'; microphone 'none'; geolocation 'none'"
+
+# 3Dモデルファイルのキャッシュ設定
+[[headers]]
+  for = "*.glb"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000"
+    Content-Type = "model/gltf-binary"
+
+[[headers]]
+  for = "*.gltf"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000"
+    Content-Type = "model/gltf+json"
+
+# マーカーファイルの設定
+[[headers]]
+  for = "/markers/*"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"
+
+# JavaScript/CSS の圧縮とキャッシュ
+[[headers]]
+  for = "*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000"
+
+[[headers]]
+  for = "*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000"
