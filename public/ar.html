@@ -663,8 +663,17 @@ arjs="
                                 },
                                 character: {
                                     modelUrl: supabaseProject.model_url || 'keyholder-default',
-                                    scale: 1,
-                                    position: [0, 0.5, 0]
+                                    scale: supabaseProject.scale || 1,
+                                    position: [
+                                        supabaseProject.position_x || 0,
+                                        supabaseProject.position_y || 0.3,
+                                        supabaseProject.position_z || 0
+                                    ],
+                                    rotation: [
+                                        supabaseProject.rotation_x || 0,
+                                        supabaseProject.rotation_y || 0,
+                                        supabaseProject.rotation_z || 0
+                                    ]
                                 },
                                 marker: { 
                                     imageUrl: supabaseProject.image_url || '' 
