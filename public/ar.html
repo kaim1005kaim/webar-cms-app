@@ -308,24 +308,65 @@
             }
         };
         
-        // プロジェクトデータの読み込み
+        // Supabase設定
+        const SUPABASE_URL = 'https://flqbgdqtphokkekminvo.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZscWJnZHF0cGhva2tla21pbnZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk1NjgyMjIsImV4cCI6MjA2NTE0NDIyMn0.rEXiy6TbMVflwpkDv9z1pMV6lsrmW7ukM81qGj4pfp0';
+        const SUPABASE_HEADERS = {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'apikey': SUPABASE_ANON_KEY
+        };
+
+        // プロジェクトデータの読み込み（Supabase対応）
         async function loadProjectData() {
             const urlParams = new URLSearchParams(window.location.search);
             const projectId = urlParams.get('project');
             
             if (projectId) {
                 try {
-                    console.log('Loading project:', projectId);
+                    console.log('Loading project from Supabase:', projectId);
                     
-                    // APIからプロジェクトデータを取得
-                    const response = await fetch(`/api/projects/${projectId}`);
+                    // Supabaseからプロジェクトデータを取得
+                    const response = await fetch(`${SUPABASE_URL}/rest/v1/projects?id=eq.${projectId}&select=*`, {
+                        method: 'GET',
+                        headers: SUPABASE_HEADERS
+                    });
+                    
                     let projectData;
                     
                     if (response.ok) {
-                        projectData = await response.json();
-                        console.log('Project loaded from API:', projectData);
+                        const supabaseProjects = await response.json();
+                        console.log('Raw Supabase project data:', supabaseProjects);
+                        
+                        if (supabaseProjects && supabaseProjects.length > 0) {
+                            const supabaseProject = supabaseProjects[0];
+                            
+                            // Supabaseデータを既存形式に変換
+                            projectData = {
+                                id: supabaseProject.id,
+                                name: supabaseProject.title,
+                                metadata: { 
+                                    description: supabaseProject.description || '' 
+                                },
+                                character: {
+                                    modelUrl: 'keyholder-default', // 現在はデフォルトモデル
+                                    scale: 1,
+                                    position: [0, 0.5, 0]
+                                },
+                                marker: { 
+                                    imageUrl: supabaseProject.image_url || '' 
+                                },
+                                created_at: supabaseProject.created_at
+                            };
+                            
+                            console.log('Converted project data:', projectData);
+                        }
                     } else {
-                        // フォールバック: ローカルストレージから取得
+                        console.warn('Supabase fetch failed, trying localStorage');
+                    }
+                    
+                    // フォールバック: ローカルストレージから取得
+                    if (!projectData) {
                         const projects = JSON.parse(localStorage.getItem('ar-projects') || '[]');
                         projectData = projects.find(p => p.id === projectId);
                         console.log('Project loaded from localStorage:', projectData);
@@ -333,6 +374,7 @@
                     
                     if (projectData) {
                         await applyProjectSettings(projectData);
+                        updateStatus(document.getElementById('ar-status'), `プロジェクト: ${projectData.name}`, 'ok');
                     } else {
                         console.warn('Project not found:', projectId);
                         updateStatus(document.getElementById('ar-status'), 'プロジェクトが見つかりません', 'error');
@@ -340,9 +382,22 @@
                 } catch (error) {
                     console.error('Project loading error:', error);
                     updateStatus(document.getElementById('ar-status'), 'プロジェクト読み込みエラー', 'error');
+                    
+                    // 最終フォールバック
+                    try {
+                        const projects = JSON.parse(localStorage.getItem('ar-projects') || '[]');
+                        const projectData = projects.find(p => p.id === projectId);
+                        if (projectData) {
+                            await applyProjectSettings(projectData);
+                            updateStatus(document.getElementById('ar-status'), `プロジェクト: ${projectData.name} (ローカル)`, 'warning');
+                        }
+                    } catch (fallbackError) {
+                        console.error('Fallback error:', fallbackError);
+                    }
                 }
             } else {
                 console.log('No project ID specified, using default settings');
+                updateStatus(document.getElementById('ar-status'), 'デフォルト表示', 'ok');
             }
         }
         
