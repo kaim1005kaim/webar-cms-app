@@ -593,7 +593,16 @@
                     });
                     
                     if (response.ok) {
-                        const result = await response.json();
+                        // Supabaseでは201ステータスの場合、空のレスポンスが返されることがある
+                        let result = {};
+                        const responseText = await response.text();
+                        if (responseText) {
+                            try {
+                                result = JSON.parse(responseText);
+                            } catch (parseError) {
+                                console.warn('JSON parse error, but operation succeeded:', parseError);
+                            }
+                        }
                         showNotification('プロジェクトをSupabaseに保存しました！', 'success');
                         saveSuccess = true;
                         console.log('Project saved to Supabase:', result);
