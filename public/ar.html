@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>AR Keyholder - Final iOS Fix</title>
+    <title>AR Keyholder - Centered Display</title>
     <!-- 安定版のCDN使用 -->
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.0/aframe/build/aframe-ar.js"></script>
@@ -95,13 +95,43 @@
             margin-top: 10px;
             display: inline-block;
         }
+        
+        #center-guide {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 200px;
+            height: 200px;
+            border: 2px dashed rgba(255, 255, 255, 0.5);
+            border-radius: 10px;
+            z-index: 500;
+            pointer-events: none;
+            display: none;
+        }
+        
+        #center-guide::before {
+            content: "マーカーをここに";
+            position: absolute;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-size: 12px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 5px 10px;
+            border-radius: 5px;
+        }
     </style>
 </head>
 <body>
+    <!-- マーカー位置ガイド -->
+    <div id="center-guide"></div>
+    
     <!-- ローディング画面 -->
     <div id="loading-screen">
         <h2>🎯 AR Keyholder</h2>
-        <p>最終版 - iOS完全対応</p>
+        <p>センター配置最適化版</p>
         <div class="progress-bar">
             <div class="progress-fill" id="progress"></div>
         </div>
@@ -114,19 +144,19 @@
         <div class="status-item" id="camera-status">📷 カメラ: 初期化中</div>
         <div class="status-item" id="ar-status">🔍 AR: 待機中</div>
         <div class="status-item" id="marker-status">📍 マーカー: 未検出</div>
-        <div class="status-item" id="device-status">📱 デバイス: <span class="status-ok">iOS Safari</span></div>
+        <div class="status-item" id="position-status">📐 位置: センター調整中</div>
     </div>
     
     <!-- 使用方法 -->
     <div id="instructions" style="display: none;">
-        <strong>📖 使用方法:</strong><br>
-        1. <a href="https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/images/hiro.png" 
-              target="_blank" class="marker-link">Hiroマーカー</a>を印刷<br>
-        2. マーカーをカメラに向けてください<br>
-        3. 3Dキーホルダーが表示されます！
+        <strong>📖 センター配置のコツ:</strong><br>
+        1. マーカーを画面中央の点線内に配置<br>
+        2. マーカー全体が画面に入るようにする<br>
+        3. 距離20-50cmを保つ<br>
+        4. 3Dオブジェクトがマーカー中央に表示されます
     </div>
 
-    <!-- AR.js Scene - CORS回避設定 -->
+    <!-- AR.js Scene - センター配置最適化 -->
     <a-scene
         id="ar-scene"
         vr-mode-ui="enabled: false"
@@ -148,93 +178,127 @@
         "
         loading-screen="enabled: false">
         
-        <!-- Hiroマーカー -->
+        <!-- Hiroマーカー - センター配置設定 -->
         <a-marker 
             preset="hiro" 
             id="hiro-marker"
             smooth="true"
-            smoothCount="3"
+            smoothCount="5"
             smoothTolerance="0.01"
             smoothThreshold="2">
             
-            <!-- 3Dキーホルダーオブジェクト -->
-            <a-entity id="keyholder-object">
-                <!-- メインボディ -->
+            <!-- 3Dキーホルダーオブジェクト - 完全センター配置 -->
+            <a-entity id="keyholder-object" position="0 0 0">
+                
+                <!-- センター基準点（デバッグ用、通常は非表示） -->
+                <a-sphere 
+                    id="center-point"
+                    position="0 0 0"
+                    radius="0.02"
+                    color="#00ff00"
+                    material="emissive: #00ff00; emissiveIntensity: 0.5;"
+                    visible="false">
+                </a-sphere>
+                
+                <!-- メインキーホルダーボディ - センター基準 -->
                 <a-box
-                    position="0 0.5 0"
-                    width="0.8"
-                    height="1.0"
-                    depth="0.3"
+                    position="0 0.4 0"
+                    width="0.6"
+                    height="0.8"
+                    depth="0.25"
                     color="#ff6b6b"
                     material="roughness: 0.5; metalness: 0.3;"
-                    animation="property: rotation; to: 0 360 0; loop: true; dur: 10000">
+                    animation="property: rotation; to: 0 360 0; loop: true; dur: 12000">
                     
-                    <!-- キャラクターの顔 -->
+                    <!-- キャラクターの顔 - ボディ相対位置 -->
                     <a-sphere
-                        position="0 0.3 0.2"
-                        radius="0.15"
+                        position="0 0.25 0.15"
+                        radius="0.12"
                         color="#ffeb3b"
                         material="roughness: 0.8; metalness: 0.1;">
                         
                         <!-- 目 -->
-                        <a-sphere position="-0.05 0.05 0.12" radius="0.02" color="#000"></a-sphere>
-                        <a-sphere position="0.05 0.05 0.12" radius="0.02" color="#000"></a-sphere>
+                        <a-sphere position="-0.04 0.03 0.09" radius="0.015" color="#000"></a-sphere>
+                        <a-sphere position="0.04 0.03 0.09" radius="0.015" color="#000"></a-sphere>
                         
-                        <!-- 笑顔 -->
-                        <a-torus 
-                            position="0 -0.03 0.12" 
-                            radius="0.04" 
-                            radius-tubular="0.008" 
-                            rotation="0 0 0"
-                            color="#000">
-                        </a-torus>
+                        <!-- 口 -->
+                        <a-cylinder 
+                            position="0 -0.03 0.09"
+                            radius="0.03"
+                            height="0.005"
+                            rotation="90 0 0"
+                            color="#000"
+                            theta-start="0"
+                            theta-length="180">
+                        </a-cylinder>
                     </a-sphere>
                     
-                    <!-- 手 -->
-                    <a-sphere position="-0.5 0 0" radius="0.08" color="#ffeb3b"></a-sphere>
-                    <a-sphere position="0.5 0 0" radius="0.08" color="#ffeb3b"></a-sphere>
+                    <!-- 腕 -->
+                    <a-sphere position="-0.35 0 0" radius="0.06" color="#ffeb3b"></a-sphere>
+                    <a-sphere position="0.35 0 0" radius="0.06" color="#ffeb3b"></a-sphere>
                 </a-box>
                 
-                <!-- キーリング -->
+                <!-- キーリング - マーカー中央上部 -->
                 <a-torus
-                    position="0 1.2 0"
+                    position="0 0.9 0"
                     color="#c0c0c0"
-                    radius="0.4"
-                    radius-tubular="0.04"
-                    material="metalness: 0.9; roughness: 0.1;"
+                    radius="0.25"
+                    radius-tubular="0.03"
+                    material="metalness: 0.9; roughness: 0.1; emissive: #444444; emissiveIntensity: 0.3;"
                     animation="property: rotation; to: 360 0 0; loop: true; dur: 8000">
                 </a-torus>
                 
-                <!-- デコレーション -->
+                <!-- チェーン効果 - キーリングからボディへ -->
+                <a-entity id="chain">
+                    <a-cylinder position="0 0.75 0" radius="0.01" height="0.05" color="#c0c0c0"></a-cylinder>
+                    <a-cylinder position="0 0.70 0" radius="0.01" height="0.05" color="#c0c0c0"></a-cylinder>
+                    <a-cylinder position="0 0.65 0" radius="0.01" height="0.05" color="#c0c0c0"></a-cylinder>
+                </a-entity>
+                
+                <!-- デコレーション - 対称配置 -->
                 <a-cylinder
-                    position="0.6 0.3 0"
-                    radius="0.05"
-                    height="0.3"
+                    position="0.4 0.4 0"
+                    radius="0.03"
+                    height="0.15"
                     color="#4ecdc4"
-                    animation="property: position; to: 0.6 0.8 0; dir: alternate; loop: true; dur: 2000">
+                    material="metalness: 0.5; roughness: 0.3;"
+                    animation="property: position; to: 0.4 0.6 0; dir: alternate; loop: true; dur: 2000">
                 </a-cylinder>
                 
                 <a-cylinder
-                    position="-0.6 0.3 0"
-                    radius="0.05"
-                    height="0.3"
+                    position="-0.4 0.4 0"
+                    radius="0.03"
+                    height="0.15"
                     color="#ffe66d"
-                    animation="property: position; to: -0.6 0.8 0; dir: alternate; loop: true; dur: 2500">
+                    material="metalness: 0.5; roughness: 0.3;"
+                    animation="property: position; to: -0.4 0.6 0; dir: alternate; loop: true; dur: 2500">
                 </a-cylinder>
                 
-                <!-- 光る効果 -->
-                <a-sphere
-                    position="0 0.5 0"
-                    radius="1.5"
-                    material="color: #ffffff; transparent: true; opacity: 0.1; shader: standard;"
-                    animation="property: rotation; to: 0 360 0; loop: true; dur: 20000">
-                </a-sphere>
+                <!-- ベース台座 - マーカー直上 -->
+                <a-cylinder
+                    position="0 0.05 0"
+                    radius="0.4"
+                    height="0.02"
+                    color="#333333"
+                    material="metalness: 0.8; roughness: 0.2; opacity: 0.7; transparent: true;">
+                </a-cylinder>
+                
+                <!-- 影効果 -->
+                <a-plane
+                    position="0 0.01 0"
+                    width="0.8"
+                    height="0.8"
+                    rotation="-90 0 0"
+                    color="#000000"
+                    material="opacity: 0.3; transparent: true;">
+                </a-plane>
             </a-entity>
         </a-marker>
         
         <!-- 最適化されたライティング -->
-        <a-light type="ambient" color="#ffffff" intensity="0.7"></a-light>
-        <a-light type="directional" position="1 1 1" color="#ffffff" intensity="0.5"></a-light>
+        <a-light type="ambient" color="#ffffff" intensity="0.6"></a-light>
+        <a-light type="directional" position="0 1 0.5" color="#ffffff" intensity="0.8" castShadow="true"></a-light>
+        <a-light type="point" position="0 2 1" color="#ffffff" intensity="0.4"></a-light>
         
         <!-- カメラ -->
         <a-entity camera></a-entity>
@@ -242,19 +306,21 @@
 
     <script>
         // グローバル変数
-        let arScene, marker;
+        let arScene, marker, keyholderObject;
         let initializationComplete = false;
         
         // DOM要素
         const loadingScreen = document.getElementById('loading-screen');
         const statusOverlay = document.getElementById('status-overlay');
         const instructions = document.getElementById('instructions');
+        const centerGuide = document.getElementById('center-guide');
         const progress = document.getElementById('progress');
         const loadingStatus = document.getElementById('loading-status');
         
         const cameraStatus = document.getElementById('camera-status');
         const arStatus = document.getElementById('ar-status');
         const markerStatus = document.getElementById('marker-status');
+        const positionStatus = document.getElementById('position-status');
         
         // プログレス更新
         function updateProgress(percentage, message) {
@@ -269,12 +335,19 @@
                 `<span class="status-${type}">${message}</span>`;
         }
         
-        // AR初期化の高速化
+        // デバッグモードの切り替え
+        function toggleDebugMode() {
+            const centerPoint = document.querySelector('#center-point');
+            if (centerPoint) {
+                centerPoint.setAttribute('visible', !centerPoint.getAttribute('visible'));
+            }
+        }
+        
+        // AR初期化
         function initializeAR() {
-            console.log('Starting fast AR initialization...');
+            console.log('Starting centered AR initialization...');
             updateProgress(25, 'A-Frameを初期化中...');
             
-            // A-Frameの初期化を待つ
             if (typeof AFRAME !== 'undefined') {
                 setupARScene();
             } else {
@@ -287,15 +360,16 @@
             
             arScene = document.querySelector('a-scene');
             marker = document.querySelector('#hiro-marker');
+            keyholderObject = document.querySelector('#keyholder-object');
             
             if (!arScene || !marker) {
                 setTimeout(setupARScene, 100);
                 return;
             }
             
-            // AR.jsイベントリスナー（簡素化）
+            // AR.jsイベントリスナー
             arScene.addEventListener('arjs-video-loaded', () => {
-                console.log('🎉 AR video loaded successfully!');
+                console.log('🎉 AR video loaded - centered display ready!');
                 updateStatus(arStatus, 'カメラ映像取得成功', 'ok');
                 updateProgress(100, 'AR初期化完了！');
                 
@@ -303,35 +377,51 @@
                 initializationComplete = true;
             });
             
-            // マーカー検出（簡素化）
+            // マーカー検出イベント - センター配置確認
             marker.addEventListener('markerFound', () => {
-                console.log('🎯 Hiro marker detected!');
-                updateStatus(markerStatus, '検出中 - キーホルダー表示中!', 'ok');
+                console.log('🎯 Hiro marker detected - displaying at center!');
+                updateStatus(markerStatus, '検出中 - センター配置完了!', 'ok');
+                updateStatus(positionStatus, 'マーカー中央に配置済み', 'ok');
                 
-                // 検出時の視覚効果
-                const keyholder = document.querySelector('#keyholder-object');
-                if (keyholder) {
-                    keyholder.setAttribute('animation__scale', {
+                // マーカー検出時のセンタリング効果
+                if (keyholderObject) {
+                    keyholderObject.setAttribute('animation__appear', {
                         property: 'scale',
-                        from: '0.8 0.8 0.8',
+                        from: '0 0 0',
                         to: '1 1 1',
-                        dur: 500,
-                        easing: 'easeOutBounce'
+                        dur: 800,
+                        easing: 'easeOutElastic'
+                    });
+                    
+                    // 中央配置確認のための一時的な光る効果
+                    keyholderObject.setAttribute('animation__glow', {
+                        property: 'rotation',
+                        from: '0 0 0',
+                        to: '0 360 0',
+                        dur: 2000,
+                        easing: 'linear'
                     });
                 }
+                
+                // センターガイドを非表示
+                centerGuide.style.display = 'none';
             });
             
             marker.addEventListener('markerLost', () => {
                 console.log('Hiro marker lost');
-                updateStatus(markerStatus, '未検出 - マーカーを探しています', 'warning');
+                updateStatus(markerStatus, '未検出 - マーカーを中央に配置', 'warning');
+                updateStatus(positionStatus, 'センター調整中', 'warning');
+                
+                // センターガイドを表示
+                centerGuide.style.display = 'block';
             });
             
             updateProgress(75, 'カメラ起動中...');
             
-            // タイムアウト（10秒に短縮）
+            // タイムアウト
             setTimeout(() => {
                 if (!initializationComplete) {
-                    console.log('Forcing AR interface display...');
+                    console.log('Forcing centered AR interface display...');
                     showARInterface();
                 }
             }, 10000);
@@ -340,33 +430,48 @@
         function showARInterface() {
             updateStatus(cameraStatus, 'アクティブ', 'ok');
             updateStatus(arStatus, '準備完了', 'ok');
+            updateStatus(positionStatus, 'センター配置準備完了', 'ok');
             
             loadingScreen.style.display = 'none';
             statusOverlay.style.display = 'block';
             instructions.style.display = 'block';
+            centerGuide.style.display = 'block';
             
-            console.log('🚀 AR interface ready!');
+            console.log('🚀 Centered AR interface ready!');
         }
         
-        // 即座に初期化開始
+        // 初期化開始
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('🎯 AR Keyholder - Final iOS Version');
+            console.log('🎯 AR Keyholder - Centered Display Version');
             console.log('User Agent:', navigator.userAgent);
             
-            updateProgress(10, 'システム初期化中...');
+            updateProgress(10, 'センター配置システム初期化中...');
             updateStatus(cameraStatus, '準備中...', 'warning');
             
-            // 高速初期化
             setTimeout(initializeAR, 500);
         });
         
-        // グローバルデバッグ
+        // グローバルデバッグ機能
         window.ARKeyholder = {
-            version: '2.0.0-final',
-            status: 'iOS-optimized',
+            version: '2.1.0-centered',
+            status: 'center-optimized',
             forceShow: showARInterface,
-            reinit: initializeAR
+            toggleDebug: toggleDebugMode,
+            reinit: initializeAR,
+            centerObject: () => {
+                if (keyholderObject) {
+                    keyholderObject.setAttribute('position', '0 0 0');
+                    console.log('Object recentered to (0,0,0)');
+                }
+            }
         };
+        
+        // キーボードショートカット
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'd' || event.key === 'D') {
+                toggleDebugMode();
+            }
+        });
     </script>
 </body>
 </html>
