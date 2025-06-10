@@ -1028,6 +1028,12 @@
                 select.appendChild(option);
             });
             
+            // カスタムGLBアップロードオプションを追加
+            const customUploadOption = document.createElement('option');
+            customUploadOption.value = 'custom-upload';
+            customUploadOption.textContent = '🆕 カスタムGLBをアップロード';
+            select.appendChild(customUploadOption);
+            
             // 選択値を復元
             if (currentValue && select.querySelector(`option[value="${currentValue}"]`)) {
                 select.value = currentValue;
