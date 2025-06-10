@@ -6,25 +6,27 @@ export default defineConfig({
   server: {
     port: 3000
   },
+  publicDir: 'public',
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    copyPublicDir: true,
     rollupOptions: {
       input: {
+        main: resolve(__dirname, 'index.html'),
         ar: resolve(__dirname, 'public/ar.html'),
-        admin: resolve(__dirname, 'public/admin.html'),
-        main: resolve(__dirname, 'public/index.html')
+        admin: resolve(__dirname, 'public/admin.html')
       }
     }
   },
   plugins: [
     {
-      name: 'copy-static-files',
+      name: 'copy-root-files',
       writeBundle() {
         try {
           const distDir = resolve(__dirname, 'dist')
           
-          // models.jsonをコピー
+          // models.jsonをコピー（publicディレクトリ外）
           if (existsSync(resolve(__dirname, 'models.json'))) {
             copyFileSync(
               resolve(__dirname, 'models.json'),
@@ -32,7 +34,7 @@ export default defineConfig({
             )
           }
           
-          // keyholder-projects.jsonをコピー
+          // keyholder-projects.jsonをコピー（publicディレクトリ外）
           if (existsSync(resolve(__dirname, 'keyholder-projects.json'))) {
             copyFileSync(
               resolve(__dirname, 'keyholder-projects.json'),
@@ -40,15 +42,9 @@ export default defineConfig({
             )
           }
           
-          // markersディレクトリを作成
-          const markersDir = resolve(distDir, 'markers')
-          if (!existsSync(markersDir)) {
-            mkdirSync(markersDir, { recursive: true })
-          }
-          
-          console.log('✓ Static files copied to dist/')
+          console.log('✓ Root files copied to dist/')
         } catch (error) {
-          console.warn('Failed to copy files:', error.message)
+          console.warn('Failed to copy root files:', error.message)
         }
       }
     }

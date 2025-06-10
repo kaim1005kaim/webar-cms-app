@@ -1,0 +1,6 @@
+# HTMLファイルの明示的なルーティング
+/admin    /admin.html    200
+/ar       /ar.html       200
+
+# APIプロキシ（netlify.tomlでも定義されているが念のため）
+/api/*    /.netlify/functions/:splat    200
