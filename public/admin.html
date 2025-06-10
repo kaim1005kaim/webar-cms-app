@@ -459,12 +459,31 @@
                     created_at: new Date().toISOString()
                 };
                 
-                // ローカルストレージに保存
-                const projects = JSON.parse(localStorage.getItem('ar-projects') || '[]');
-                projects.push(projectData);
-                localStorage.setItem('ar-projects', JSON.stringify(projects));
-                
-                showNotification('プロジェクトを作成しました！', 'success');
+                // APIを使ってサーバーに保存
+                try {
+                    const response = await fetch('/api/projects', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(projectData),
+                    });
+                    
+                    if (response.ok) {
+                        showNotification('プロジェクトを作成しました！', 'success');
+                        // プロジェクト一覧を再読み込み
+                        await loadProjects();
+                    } else {
+                        throw new Error('API response error');
+                    }
+                } catch (apiError) {
+                    console.warn('API保存失敗、ローカルストレージにフォールバック:', apiError);
+                    // フォールバック: ローカルストレージに保存
+                    const projects = JSON.parse(localStorage.getItem('ar-projects') || '[]');
+                    projects.push(projectData);
+                    localStorage.setItem('ar-projects', JSON.stringify(projects));
+                    showNotification('プロジェクトを作成しました（ローカル保存）', 'success');
+                }
                 
                 // フォームリセット
                 document.getElementById('create-project-form').reset();
@@ -629,15 +648,33 @@
             }
         }
         
-        // ローカルストレージ版loadProjects
+        // API + ローカルストレージ版loadProjects
         async function loadProjects() {
             try {
-                const projects = JSON.parse(localStorage.getItem('ar-projects') || '[]');
-                renderProjects(projects);
-                updateStats();
-            } catch (error) {
-                console.error('プロジェクト読み込みエラー:', error);
-                showNotification('プロジェクトの読み込みに失敗しました', 'error');
+                // まずAPIから取得を試行
+                const response = await fetch('/api/projects');
+                if (response.ok) {
+                    const data = await response.json();
+                    const projects = data.projects || [];
+                    renderProjects(projects);
+                    updateStats();
+                    console.log('プロジェクトをAPIから読み込みました:', projects.length, '個');
+                } else {
+                    throw new Error('API response error');
+                }
+            } catch (apiError) {
+                console.warn('API読み込み失敗、ローカルストレージから読み込み:', apiError);
+                // フォールバック: ローカルストレージから読み込み
+                try {
+                    const projects = JSON.parse(localStorage.getItem('ar-projects') || '[]');
+                    renderProjects(projects);
+                    updateStats();
+                    console.log('プロジェクトをローカルストレージから読み込みました:', projects.length, '個');
+                } catch (localError) {
+                    console.error('プロジェクト読み込みエラー:', localError);
+                    showNotification('プロジェクトの読み込みに失敗しました', 'error');
+                    renderProjects([]); // 空のリストを表示
+                }
             }
         }
         

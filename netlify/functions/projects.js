@@ -1,15 +1,30 @@
 const fs = require('fs').promises;
 const path = require('path');
 
-const PROJECTS_FILE = path.join(process.cwd(), 'keyholder-projects.json');
+// Netlify Functionsでは、ファイルは関数と同じディレクトリにデプロイされる
+const PROJECTS_FILE = process.env.LAMBDA_TASK_ROOT 
+  ? path.join(process.env.LAMBDA_TASK_ROOT, 'keyholder-projects.json')
+  : path.join(__dirname, '../../keyholder-projects.json');
 
 async function readProjectsFile() {
   try {
+    console.log('Attempting to read projects from:', PROJECTS_FILE);
     const data = await fs.readFile(PROJECTS_FILE, 'utf-8');
-    return JSON.parse(data);
+    const parsed = JSON.parse(data);
+    console.log('Successfully read projects:', parsed.projects?.length || 0, 'projects');
+    return parsed;
   } catch (error) {
-    console.error('Error reading projects file:', error);
-    return { projects: [], markers: [] };
+    console.error('Error reading projects file:', error.message);
+    console.error('Full error:', error);
+    // デフォルトのプロジェクトデータを返す
+    return { 
+      projects: [], 
+      markers: [],
+      metadata: {
+        created_at: new Date().toISOString(),
+        version: "1.0.0"
+      }
+    };
   }
 }
 
@@ -38,9 +53,12 @@ exports.handler = async (event, context) => {
     };
   }
 
-  const path = event.path.replace('/.netlify/functions/', '');
-  const segments = path.split('/');
-  const projectId = segments[1];
+  // パスから関数名を削除して、正しいセグメントを取得
+  console.log('Original path:', event.path);
+  const functionPath = event.path.replace('/.netlify/functions/projects', '').replace('/api/projects', '');
+  const segments = functionPath.split('/').filter(Boolean);
+  const projectId = segments[0];
+  console.log('Function path:', functionPath, 'Project ID:', projectId);
 
   try {
     switch (event.httpMethod) {
@@ -66,7 +84,7 @@ exports.handler = async (event, context) => {
           return {
             statusCode: 200,
             headers,
-            body: JSON.stringify(data.projects),
+            body: JSON.stringify(data),
           };
         }
 
