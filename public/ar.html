@@ -443,13 +443,13 @@
             <!-- 3Dキーホルダーオブジェクト - 表示確実化 -->
             <a-entity id="keyholder-object" position="0 0 0" visible="true">
                 
-                <!-- メインボディ（赤い箱） -->
+                <!-- メインボディ（赤い箱） - マーカー中央に配置 -->
                 <a-box
                     id="main-body"
-                    position="0 0.5 0"
-                    width="0.5"
-                    height="0.8"
-                    depth="0.2"
+                    position="0 0.3 0"
+                    width="0.4"
+                    height="0.6"
+                    depth="0.15"
                     color="#e74c3c"
                     visible="true"
                     animation="property: rotation; to: 0 360 0; loop: true; dur: 10000">
@@ -458,24 +458,24 @@
                 <!-- 顔（黄色い球） -->
                 <a-sphere
                     id="head"
-                    position="0 0.9 0.15"
-                    radius="0.15"
+                    position="0 0.7 0.1"
+                    radius="0.12"
                     color="#f1c40f"
                     visible="true">
                 </a-sphere>
                 
                 <!-- 目（左） -->
                 <a-sphere
-                    position="-0.05 0.95 0.25"
-                    radius="0.03"
+                    position="-0.04 0.75 0.18"
+                    radius="0.02"
                     color="#000"
                     visible="true">
                 </a-sphere>
                 
                 <!-- 目（右） -->
                 <a-sphere
-                    position="0.05 0.95 0.25"
-                    radius="0.03"
+                    position="0.04 0.75 0.18"
+                    radius="0.02"
                     color="#000"
                     visible="true">
                 </a-sphere>
@@ -483,10 +483,10 @@
                 <!-- キーリング（シルバー） -->
                 <a-torus
                     id="ring"
-                    position="0 1.3 0"
+                    position="0 1.0 0"
                     color="#bdc3c7"
-                    radius="0.2"
-                    radius-tubular="0.02"
+                    radius="0.15"
+                    radius-tubular="0.015"
                     rotation="90 0 0"
                     visible="true"
                     animation="property: rotation; to: 90 360 0; loop: true; dur: 8000">
@@ -494,9 +494,9 @@
                 
                 <!-- ベース（影用） -->
                 <a-cylinder
-                    position="0 0.05 0"
-                    radius="0.4"
-                    height="0.05"
+                    position="0 0.02 0"
+                    radius="0.3"
+                    height="0.03"
                     color="#34495e"
                     opacity="0.5">
                 </a-cylinder>
@@ -534,7 +534,7 @@
         
         // 位置調整関数
         function adjustPosition(direction) {
-            const step = 0.1; // 調整幅
+            const step = 0.05; // 調整幅を細かく
             
             switch(direction) {
                 case 'left':
@@ -685,9 +685,9 @@
             [mainBody, characterHead, keyRing].forEach(element => {
                 if (element) {
                     element.setAttribute('visible', 'true');
-                    // エミッシブ光を追加して見えやすくする
+                    // エミッシブ光を追加して見えやすくする（エラー修正）
                     const currentMaterial = element.getAttribute('material') || '';
-                    if (!currentMaterial.includes('emissive')) {
+                    if (typeof currentMaterial === 'string' && !currentMaterial.includes('emissive')) {
                         element.setAttribute('material', currentMaterial + '; emissive: ' + element.getAttribute('color') + '; emissiveIntensity: 0.2;');
                     }
                 }
