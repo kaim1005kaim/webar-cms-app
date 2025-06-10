@@ -285,7 +285,8 @@
         const SUPABASE_HEADERS = {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-            'apikey': SUPABASE_ANON_KEY
+            'apikey': SUPABASE_ANON_KEY,
+            'Prefer': 'return=representation'
         };
 
         // プロジェクト一覧読み込み（緊急フォールバック版）
@@ -593,16 +594,8 @@
                     });
                     
                     if (response.ok) {
-                        // Supabaseでは201ステータスの場合、空のレスポンスが返されることがある
-                        let result = {};
-                        const responseText = await response.text();
-                        if (responseText) {
-                            try {
-                                result = JSON.parse(responseText);
-                            } catch (parseError) {
-                                console.warn('JSON parse error, but operation succeeded:', parseError);
-                            }
-                        }
+                        // Prefer: return=representation ヘッダーでデータが返される
+                        const result = await response.json();
                         showNotification('プロジェクトをSupabaseに保存しました！', 'success');
                         saveSuccess = true;
                         console.log('Project saved to Supabase:', result);
