@@ -333,6 +333,12 @@
                         <p>${project.metadata?.description || '説明なし'}</p>
                         <p><small>作成者: ${project.creator?.name || 'Unknown'}</small></p>
                         <p><small>作成日: ${new Date(project.created_at).toLocaleDateString()}</small></p>
+                        <div style="margin: 10px 0; text-align: center;">
+                            <div style="background: #f8f9fa; padding: 10px; border-radius: 6px; margin-bottom: 10px;">
+                                <div style="font-size: 12px; color: #666; margin-bottom: 5px;">📱 ARアクセス用QRコード</div>
+                                <div id="qr-${project.id}" style="display: inline-block;"></div>
+                            </div>
+                        </div>
                         <div class="project-actions">
                             <button class="btn btn-primary btn-small" onclick="viewAR('${project.id}')">📱 AR表示</button>
                             <button class="btn btn-small" onclick="editProject('${project.id}')" style="background: #95a5a6; color: white;">✏️ 編集</button>
@@ -342,6 +348,9 @@
                     </div>
                 `;
                 container.appendChild(card);
+                
+                // QRコード生成
+                generateQRCode(project.id);
             });
         }
         
@@ -594,6 +603,28 @@
                 localStorage.removeItem('ar-settings');
                 loadProjects();
                 showNotification('全データを削除しました', 'success');
+            }
+        }
+        
+        // QRコード生成関数
+        function generateQRCode(projectId) {
+            const arUrl = `${window.location.origin}/ar.html?project=${projectId}`;
+            const qrContainer = document.getElementById(`qr-${projectId}`);
+            
+            if (qrContainer) {
+                // QR Code APIを使用してQRコード生成
+                const qrSize = 120;
+                const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${qrSize}x${qrSize}&data=${encodeURIComponent(arUrl)}`;
+                
+                qrContainer.innerHTML = `
+                    <img src="${qrApiUrl}" 
+                         alt="QR Code for ${projectId}" 
+                         style="max-width: 100px; height: auto; border: 1px solid #ddd; border-radius: 4px;"
+                         title="QRコードをスキャンしてAR体験">
+                    <div style="font-size: 10px; color: #999; margin-top: 5px; word-break: break-all;">
+                        ${arUrl}
+                    </div>
+                `;
             }
         }
         
