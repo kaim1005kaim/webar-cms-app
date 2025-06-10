@@ -177,7 +177,7 @@
                             <label for="glb-file">カスタムGLBファイル (.glb)</label>
                             <div class="upload-area" id="glb-upload-area">
                                 <p>📦 GLBファイルをドラッグ&ドロップまたはクリックしてアップロード</p>
-                                <p><small>推奨: 5MB以下、最適化済みモデル</small></p>
+                                <p><small>推奨: 20MB以下、最適化済みモデル</small></p>
                                 <p><small style="color: #f39c12;">⚠️ 大きなファイルはローカル保存のみ対応</small></p>
                                 <input type="file" id="glb-file" accept=".glb" style="display: none;">
                             </div>
@@ -695,7 +695,7 @@
                     }
                     
                     // GLBファイルが大きすぎる場合はローカルストレージにフォールバック
-                    if (finalModelUrl && finalModelUrl.startsWith('data:') && finalModelUrl.length > 1024 * 1024) {
+                    if (finalModelUrl && finalModelUrl.startsWith('data:') && finalModelUrl.length > 5 * 1024 * 1024) {
                         console.warn('Large GLB file detected, saving to localStorage instead of Supabase');
                         throw new Error('Large file - using localStorage fallback');
                     }
@@ -1246,8 +1246,8 @@
                     throw new Error('GLBファイルを選択してください');
                 }
                 
-                if (file.size > 5 * 1024 * 1024) { // 5MB制限に縮小
-                    throw new Error('ファイルサイズが大きすぎます（5MB以下にしてください）');
+                if (file.size > 20 * 1024 * 1024) { // 20MB制限に拡大
+                    throw new Error('ファイルサイズが大きすぎます（20MB以下にしてください）');
                 }
                 
                 // ファイル情報を表示
@@ -1262,6 +1262,9 @@
                     reader.onerror = reject;
                     reader.readAsDataURL(file);
                 });
+                
+                // 3Dプレビュー用にデータを設定
+                currentGLBData = uploadedGlbData;
                 
                 showNotification('GLBファイルの準備が完了しました', 'success');
                 
