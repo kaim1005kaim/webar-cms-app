@@ -290,18 +290,36 @@
             }
         }
         
-        function updateStats() {
+        async function updateStats() {
             const stats = {
                 totalProjects: 0,
                 totalMarkers: 0,
                 totalModels: 3, // デフォルトモデル数
-                arViews: Math.floor(Math.random() * 1000) // デモ用ランダム数
+                arViews: localStorage.getItem('ar-total-views') || '0'
             };
             
-            // localStorageからデータを取得
-            const projects = JSON.parse(localStorage.getItem('ar-projects') || '[]');
-            stats.totalProjects = projects.length;
-            stats.totalMarkers = projects.length; // 1プロジェクトに1マーカー
+            try {
+                // APIからプロジェクト数を取得
+                const projectsResponse = await fetch('/api/projects');
+                if (projectsResponse.ok) {
+                    const projectsData = await projectsResponse.json();
+                    stats.totalProjects = projectsData.projects ? projectsData.projects.length : 0;
+                    stats.totalMarkers = stats.totalProjects; // 1プロジェクトに1マーカー
+                }
+                
+                // APIからモデル数を取得
+                const modelsResponse = await fetch('/api/models');
+                if (modelsResponse.ok) {
+                    const modelsData = await modelsResponse.json();
+                    stats.totalModels = modelsData.models ? modelsData.models.length : 3;
+                }
+            } catch (error) {
+                console.warn('Stats API error, using localStorage fallback:', error);
+                // フォールバック: ローカルストレージから取得
+                const projects = JSON.parse(localStorage.getItem('ar-projects') || '[]');
+                stats.totalProjects = projects.length;
+                stats.totalMarkers = projects.length;
+            }
             
             document.getElementById('total-projects').textContent = stats.totalProjects;
             document.getElementById('total-markers').textContent = stats.totalMarkers;
@@ -515,6 +533,7 @@
                 };
                 
                 // APIを使ってサーバーに保存
+                let saveSuccess = false;
                 try {
                     const response = await fetch('/api/projects', {
                         method: 'POST',
@@ -525,11 +544,14 @@
                     });
                     
                     if (response.ok) {
+                        const result = await response.json();
                         showNotification('プロジェクトを作成しました！', 'success');
-                        // プロジェクト一覧を再読み込み
-                        await loadProjects();
+                        saveSuccess = true;
+                        console.log('Project saved via API:', result);
                     } else {
-                        throw new Error('API response error');
+                        const errorText = await response.text();
+                        console.error('API response error:', response.status, errorText);
+                        throw new Error(`API response error: ${response.status}`);
                     }
                 } catch (apiError) {
                     console.warn('API保存失敗、ローカルストレージにフォールバック:', apiError);
@@ -538,18 +560,29 @@
                     projects.push(projectData);
                     localStorage.setItem('ar-projects', JSON.stringify(projects));
                     showNotification('プロジェクトを作成しました（ローカル保存）', 'success');
+                    saveSuccess = true;
                 }
                 
-                // フォームリセット
-                document.getElementById('create-project-form').reset();
-                uploadArea.innerHTML = `
-                    <p>📁 クリックまたはドラッグ&ドロップで画像をアップロード</p>
-                    <p><small>推奨: 高コントラスト、複雑なパターン、512x512px以上</small></p>
-                `;
-                document.getElementById('scale-value').textContent = '0.5';
-                
-                // プロジェクト一覧タブに移動
-                showTab('projects');
+                // 保存が成功した場合のみ一覧を更新
+                if (saveSuccess) {
+                    await loadProjects();
+                    await updateStats();
+                    
+                    // フォームリセット
+                    document.getElementById('create-project-form').reset();
+                    uploadArea.innerHTML = `
+                        <p>📁 クリックまたはドラッグ&ドロップで画像をアップロード</p>
+                        <p><small>推奨: 高コントラスト、複雑なパターン、512x512px以上</small></p>
+                    `;
+                    uploadArea.dataset.uploadedUrl = '';
+                    uploadArea.dataset.fileName = '';
+                    document.getElementById('scale-value').textContent = '0.5';
+                    
+                    // プロジェクト一覧タブに移動
+                    showTab('projects');
+                } else {
+                    showNotification('プロジェクトの保存に失敗しました', 'error');
+                }
                 
             } catch (error) {
                 console.error('プロジェクト作成エラー:', error);
@@ -946,6 +979,11 @@
             if (currentValue && select.querySelector(`option[value="${currentValue}"]`)) {
                 select.value = currentValue;
             }
+        }
+        
+        // AR表示回数の初期化
+        if (!localStorage.getItem('ar-total-views')) {
+            localStorage.setItem('ar-total-views', '0');
         }
         
         // 初期読み込み

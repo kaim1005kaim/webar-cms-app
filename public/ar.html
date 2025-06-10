@@ -386,9 +386,17 @@
             }
         }
         
+        // AR表示回数をカウント
+        function incrementViewCount() {
+            const currentViews = parseInt(localStorage.getItem('ar-total-views') || '0');
+            localStorage.setItem('ar-total-views', (currentViews + 1).toString());
+            console.log('AR view count incremented:', currentViews + 1);
+        }
+        
         // ページ読み込み時にプロジェクトデータを読み込み
         document.addEventListener('DOMContentLoaded', () => {
             loadProjectData();
+            incrementViewCount();
         });
     </script>
 </body>
