@@ -641,8 +641,81 @@
             }
         }
         
+        // モデル一覧を動的に読み込み
+        async function loadModels() {
+            try {
+                const response = await fetch('/api/models');
+                if (response.ok) {
+                    const data = await response.json();
+                    populateModelDropdown(data.models || []);
+                } else {
+                    console.warn('モデルAPI読み込み失敗、デフォルトオプションを使用');
+                }
+            } catch (error) {
+                console.error('モデル読み込みエラー:', error);
+                console.warn('デフォルトオプションを使用します');
+            }
+        }
+        
+        // モデルプルダウンを動的に更新
+        function populateModelDropdown(models) {
+            const select = document.getElementById('character-model');
+            if (!select) return;
+            
+            // 現在の選択値を保存
+            const currentValue = select.value;
+            
+            // プルダウンをクリア（最初のオプションは残す）
+            select.innerHTML = '<option value="">モデルを選択...</option>';
+            
+            // デフォルトキーホルダーオプションを追加
+            const defaultOption = document.createElement('option');
+            defaultOption.value = 'keyholder-default';
+            defaultOption.textContent = 'デフォルトキーホルダー (WebGPU最適化)';
+            select.appendChild(defaultOption);
+            
+            // APIから取得したモデルを追加
+            if (models && models.length > 0) {
+                models.forEach(model => {
+                    const option = document.createElement('option');
+                    option.value = model.model_url;
+                    option.textContent = `${model.title} ${model.description ? '(' + model.description + ')' : ''}`;
+                    select.appendChild(option);
+                });
+            }
+            
+            // 外部サンプルモデルも追加
+            const externalModels = [
+                {
+                    url: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Duck/glTF-Binary/Duck.glb',
+                    title: 'アヒル (外部サンプル)'
+                },
+                {
+                    url: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Box/glTF-Binary/Box.glb',
+                    title: 'キューブ (外部サンプル)'
+                },
+                {
+                    url: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Avocado/glTF-Binary/Avocado.glb',
+                    title: 'アボカド (外部サンプル)'
+                }
+            ];
+            
+            externalModels.forEach(model => {
+                const option = document.createElement('option');
+                option.value = model.url;
+                option.textContent = model.title;
+                select.appendChild(option);
+            });
+            
+            // 選択値を復元
+            if (currentValue && select.querySelector(`option[value="${currentValue}"]`)) {
+                select.value = currentValue;
+            }
+        }
+        
         // 初期読み込み
         loadProjects();
+        loadModels();
         checkWebGPUSupport();
     </script>
 </body>
