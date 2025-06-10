@@ -11,34 +11,37 @@
     <script>
         AFRAME.registerComponent('markerhandler', {
             init: function () {
-                const marker = this.el;
-                console.log('🎯 Custom marker handler initialized');
+                this.marker = this.el;
+                this.characterContainer = null;
+                this.isMarkerVisible = false;
+                console.log('🎯 Advanced marker handler initialized with tick-based sync');
                 
-                marker.addEventListener('markerFound', () => {
-                    console.log('🎯 Marker found - ensuring perfect center alignment');
+                this.marker.addEventListener('markerFound', () => {
+                    console.log('🎯 Marker found - starting continuous center alignment');
+                    this.isMarkerVisible = true;
                     
-                    // マーカーの変換マトリックスを取得
-                    const markerObject3D = marker.object3D;
-                    
-                    // キャラクターコンテナの位置をマーカー中心に完全に合わせる
-                    const characterContainer = marker.querySelector('#character-container');
-                    if (characterContainer) {
-                        // 強制的に原点に配置
-                        characterContainer.object3D.position.set(0, 0, 0);
-                        characterContainer.object3D.rotation.set(0, 0, 0);
-                        characterContainer.object3D.scale.set(1, 1, 1);
-                        
-                        // マトリックスを更新
-                        characterContainer.object3D.updateMatrix();
-                        
-                        console.log('Character container positioned at marker center:', 
-                                  characterContainer.object3D.position);
+                    if (!this.characterContainer) {
+                        this.characterContainer = this.marker.querySelector('#character-container');
                     }
                 });
                 
-                marker.addEventListener('markerLost', () => {
-                    console.log('Marker lost');
+                this.marker.addEventListener('markerLost', () => {
+                    console.log('🎯 Marker lost - stopping sync');
+                    this.isMarkerVisible = false;
                 });
+            },
+            
+            tick: function () {
+                // マーカーが検出されている間、毎フレーム同期
+                if (this.isMarkerVisible && this.characterContainer) {
+                    // マーカーの座標系に完全に合わせる
+                    this.characterContainer.object3D.position.set(0, 0, 0);
+                    this.characterContainer.object3D.rotation.set(0, 0, 0);
+                    this.characterContainer.object3D.scale.set(1, 1, 1);
+                    
+                    // ワールド行列も強制更新
+                    this.characterContainer.object3D.updateMatrixWorld(true);
+                }
             }
         });
     </script>
@@ -141,7 +144,7 @@
             positionRatioAccuracy: 1000;
             minConfidence: 0.6;
             labelingMode: black_region;
-            patternRatio: 0.5;
+            patternRatio: 0.8;
             imageSmoothingEnabled: false;
         "
         loading-screen="enabled: false">
@@ -150,6 +153,7 @@
         <a-marker 
             preset="hiro" 
             id="hiro-marker"
+            markerWidth="0.08"
             smooth="true"
             smoothCount="3"
             smoothTolerance="0.005"
@@ -283,12 +287,19 @@
                 console.log('Reference spheres hidden');
             },
             adjustCharacter: (x, y, z) => {
-                const models = document.querySelectorAll('#character-container a-gltf-model');
-                models.forEach(model => {
-                    model.object3D.position.set(x, y, z);
-                    model.object3D.updateMatrix();
-                });
-                console.log(`Character models moved to: ${x}, ${y}, ${z}`);
+                const wrapper = document.querySelector('#model-wrapper');
+                if (wrapper) {
+                    wrapper.object3D.position.set(x, y, z);
+                    wrapper.object3D.updateMatrixWorld(true);
+                    console.log(`Character wrapper moved to: ${x}, ${y}, ${z}`);
+                } else {
+                    const models = document.querySelectorAll('#character-container a-gltf-model');
+                    models.forEach(model => {
+                        model.object3D.position.set(x, y, z);
+                        model.object3D.updateMatrixWorld(true);
+                    });
+                    console.log(`Character models moved to: ${x}, ${y}, ${z}`);
+                }
             },
             getMarkerMatrix: () => {
                 const marker = document.querySelector('#hiro-marker');
@@ -299,15 +310,45 @@
             debugInfo: () => {
                 const marker = document.querySelector('#hiro-marker');
                 const container = document.querySelector('#character-container');
+                const wrapper = document.querySelector('#model-wrapper');
                 console.log('=== DEBUG INFO ===');
                 console.log('Marker position:', marker.object3D.position);
                 console.log('Container position:', container.object3D.position);
                 console.log('Container world position:', container.object3D.getWorldPosition(new THREE.Vector3()));
+                if (wrapper) {
+                    console.log('Model wrapper position:', wrapper.object3D.position);
+                    console.log('Wrapper world position:', wrapper.object3D.getWorldPosition(new THREE.Vector3()));
+                }
                 return {
                     marker: marker.object3D.position,
                     container: container.object3D.position,
-                    containerWorld: container.object3D.getWorldPosition(new THREE.Vector3())
+                    containerWorld: container.object3D.getWorldPosition(new THREE.Vector3()),
+                    wrapper: wrapper ? wrapper.object3D.position : null
                 };
+            },
+            testOffsets: () => {
+                console.log('Testing different offset values...');
+                const offsets = [
+                    {x: 0, y: 0, z: 0, name: 'Center'},
+                    {x: -0.1, y: 0, z: 0, name: 'Left adjust'},
+                    {x: 0.1, y: 0, z: 0, name: 'Right adjust'},
+                    {x: 0, y: 0, z: -0.1, name: 'Forward adjust'},
+                    {x: 0, y: 0, z: 0.1, name: 'Backward adjust'}
+                ];
+                
+                let i = 0;
+                const testNext = () => {
+                    if (i < offsets.length) {
+                        const offset = offsets[i];
+                        ARKeyholder.adjustCharacter(offset.x, offset.y, offset.z);
+                        console.log(`Testing: ${offset.name} (${offset.x}, ${offset.y}, ${offset.z})`);
+                        i++;
+                        setTimeout(testNext, 2000);
+                    } else {
+                        console.log('Test complete. Use ARKeyholder.adjustCharacter(x,y,z) to set desired position');
+                    }
+                };
+                testNext();
             },
             loadProject: (projectId) => {
                 const url = new URL(window.location);
@@ -438,6 +479,11 @@
                         // GLTFモデルを追加
                         const gltfEntity = document.createElement('a-gltf-model');
                         gltfEntity.setAttribute('src', modelSrc);
+                        // ダミー親エンティティを作成してモデルのオフセットを補正
+                        const modelWrapper = document.createElement('a-entity');
+                        modelWrapper.setAttribute('id', 'model-wrapper');
+                        modelWrapper.setAttribute('position', '0 0 0');
+                        
                         gltfEntity.setAttribute('position', projectData.character.position ? 
                             `${projectData.character.position[0]} ${projectData.character.position[1]} ${projectData.character.position[2]}` : 
                             '0 0.3 0');  // 物理キーホルダーの上に表示
@@ -457,7 +503,8 @@
                             gltfEntity.remove();
                         });
                         
-                        characterContainer.appendChild(gltfEntity);
+                        modelWrapper.appendChild(gltfEntity);
+                        characterContainer.appendChild(modelWrapper);
                         console.log('Character model entity created:', modelSrc.substring(0, 100) + '...');
                     } else {
                         console.log('No character model specified or default keyholder selected');
