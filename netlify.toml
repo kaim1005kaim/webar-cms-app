@@ -23,7 +23,7 @@
   to = "/.netlify/functions/projects/:splat"
   status = 200
 
-# ARアプリ用の明示的なリダイレクト（SPAフォールバックより前に配置）
+# ARアプリ用の明示的なリダイレクト
 [[redirects]]
   from = "/ar"
   to = "/ar.html"
@@ -42,10 +42,13 @@
   conditions = {Role = ["admin"], Country = ["!ar.html", "!admin.html", "!*.js", "!*.css", "!*.png", "!*.jpg", "!*.glb", "!*.gltf", "!*.wasm"]}
   force = false
 
-# カメラ権限とセキュリティヘッダー
+# CORS と セキュリティヘッダー
 [[headers]]
   for = "/*"
   [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type, Authorization"
     X-Frame-Options = "SAMEORIGIN"
     X-XSS-Protection = "1; mode=block"
     X-Content-Type-Options = "nosniff"
@@ -57,6 +60,7 @@
   [headers.values]
     Permissions-Policy = "camera=(self), microphone=(), geolocation=(), accelerometer=(self), gyroscope=(self), magnetometer=(self)"
     Feature-Policy = "camera 'self'; microphone 'none'; geolocation 'none'"
+    Access-Control-Allow-Origin = "*"
 
 # 3Dモデルファイルのキャッシュ設定
 [[headers]]
@@ -64,26 +68,31 @@
   [headers.values]
     Cache-Control = "public, max-age=31536000"
     Content-Type = "model/gltf-binary"
+    Access-Control-Allow-Origin = "*"
 
 [[headers]]
   for = "*.gltf"
   [headers.values]
     Cache-Control = "public, max-age=31536000"
     Content-Type = "model/gltf+json"
+    Access-Control-Allow-Origin = "*"
 
 # マーカーファイルの設定
 [[headers]]
   for = "/markers/*"
   [headers.values]
     Cache-Control = "public, max-age=86400"
+    Access-Control-Allow-Origin = "*"
 
 # JavaScript/CSS の圧縮とキャッシュ
 [[headers]]
   for = "*.js"
   [headers.values]
     Cache-Control = "public, max-age=31536000"
+    Access-Control-Allow-Origin = "*"
 
 [[headers]]
   for = "*.css"
   [headers.values]
     Cache-Control = "public, max-age=31536000"
+    Access-Control-Allow-Origin = "*"

@@ -3,10 +3,10 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>AR Keyholder - Netlify</title>
-    <!-- CDNから直接読み込み（Netlifyで安定） -->
-    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/aframe/build/aframe-ar.js"></script>
+    <title>AR Keyholder - iOS Optimized</title>
+    <!-- 安定版のCDN使用 -->
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.0/aframe/build/aframe-ar.js"></script>
     <style>
         body { 
             margin: 0; 
@@ -95,17 +95,28 @@
             margin-top: 10px;
             display: inline-block;
         }
+        
+        .error-details {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-top: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 5px;
+            text-align: left;
+        }
     </style>
 </head>
 <body>
     <!-- ローディング画面 -->
     <div id="loading-screen">
         <h2>AR Keyholder</h2>
-        <p>カメラとARシステムを初期化中...</p>
+        <p>iOS Safari最適化版</p>
         <div class="progress-bar">
             <div class="progress-fill" id="progress"></div>
         </div>
         <div id="loading-status">初期化中...</div>
+        <div id="error-details" class="error-details" style="display: none;"></div>
     </div>
     
     <!-- ステータス表示 -->
@@ -114,7 +125,7 @@
         <div class="status-item" id="camera-status">📷 カメラ: 初期化中</div>
         <div class="status-item" id="ar-status">🔍 AR: 待機中</div>
         <div class="status-item" id="marker-status">📍 マーカー: 未検出</div>
-        <div class="status-item" id="netlify-status">🌐 Netlify: <span class="status-ok">接続済み</span></div>
+        <div class="status-item" id="device-status">📱 デバイス: <span class="status-ok">iOS Safari</span></div>
     </div>
     
     <!-- 使用方法 -->
@@ -126,13 +137,26 @@
         3. マーカーをカメラに向けてください
     </div>
 
-    <!-- AR.js Scene -->
+    <!-- AR.js Scene - iOS最適化設定 -->
     <a-scene
         id="ar-scene"
         vr-mode-ui="enabled: false"
-        renderer="logarithmicDepthBuffer: true; colorManagement: true; antialias: true; alpha: true;"
+        renderer="logarithmicDepthBuffer: true; colorManagement: true; antialias: true; alpha: true; precision: medium;"
         embedded
-        arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3; cameraParametersUrl: https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/data/data/camera_para.dat;"
+        arjs="
+            trackingMethod: best; 
+            sourceType: webcam; 
+            debugUIEnabled: false; 
+            detectionMode: mono_and_matrix; 
+            matrixCodeType: 3x3;
+            sourceWidth: 640;
+            sourceHeight: 480;
+            displayWidth: 640;
+            displayHeight: 480;
+            maxDetectionRate: 30;
+            canvasWidth: 640;
+            canvasHeight: 480;
+        "
         loading-screen="enabled: false">
         
         <!-- Hiroマーカー -->
@@ -140,88 +164,62 @@
             preset="hiro" 
             id="hiro-marker"
             smooth="true"
-            smoothCount="10"
+            smoothCount="5"
             smoothTolerance="0.01"
-            smoothThreshold="5">
+            smoothThreshold="2">
             
-            <!-- キーホルダー風の3Dオブジェクト -->
+            <!-- シンプルな3Dオブジェクト（iOS最適化） -->
             <a-entity id="keyholder-object">
-                <!-- メインリング -->
-                <a-torus
-                    position="0 0.5 0"
-                    color="#c0c0c0"
-                    radius="0.8"
-                    radius-tubular="0.05"
-                    material="metalness: 0.8; roughness: 0.2;"
-                    animation="property: rotation; to: 0 360 0; loop: true; dur: 20000">
-                </a-torus>
-                
-                <!-- キャラクターボディ -->
+                <!-- メインボックス -->
                 <a-box
-                    position="0 0 0"
+                    position="0 0.5 0"
                     width="0.6"
                     height="0.8"
                     depth="0.2"
                     color="#ff6b6b"
-                    material="metalness: 0.3; roughness: 0.4;"
-                    animation="property: rotation; to: 360 0 0; loop: true; dur: 12000">
+                    material="roughness: 0.5; metalness: 0.3;"
+                    animation="property: rotation; to: 0 360 0; loop: true; dur: 8000">
                     
                     <!-- 顔 -->
                     <a-sphere
-                        position="0 0.25 0.15"
-                        radius="0.15"
+                        position="0 0.2 0.15"
+                        radius="0.12"
                         color="#ffeb3b"
-                        material="metalness: 0.1; roughness: 0.8;">
+                        material="roughness: 0.8; metalness: 0.1;">
                         
                         <!-- 目 -->
-                        <a-sphere position="-0.05 0.05 0.1" radius="0.02" color="#000"></a-sphere>
-                        <a-sphere position="0.05 0.05 0.1" radius="0.02" color="#000"></a-sphere>
+                        <a-sphere position="-0.04 0.04 0.08" radius="0.015" color="#000"></a-sphere>
+                        <a-sphere position="0.04 0.04 0.08" radius="0.015" color="#000"></a-sphere>
                         
                         <!-- 口 -->
-                        <a-box position="0 -0.05 0.1" width="0.06" height="0.01" depth="0.01" color="#000"></a-box>
+                        <a-box position="0 -0.04 0.08" width="0.05" height="0.008" depth="0.008" color="#000"></a-box>
                     </a-sphere>
                 </a-box>
                 
-                <!-- アクセサリー（動くパーツ） -->
-                <a-cylinder
-                    position="0.6 0 0"
-                    radius="0.08"
-                    height="0.3"
-                    color="#4ecdc4"
-                    material="metalness: 0.5; roughness: 0.3;"
-                    animation="property: position; to: 0.6 0.3 0; dir: alternate; loop: true; dur: 2000">
-                </a-cylinder>
-                
-                <a-cylinder
-                    position="-0.6 0 0"
-                    radius="0.08"
-                    height="0.3"
-                    color="#ffe66d"
-                    material="metalness: 0.5; roughness: 0.3;"
-                    animation="property: position; to: -0.6 0.3 0; dir: alternate; loop: true; dur: 2500">
-                </a-cylinder>
-                
-                <!-- チェーン効果 -->
-                <a-entity id="chain">
-                    <a-sphere position="0 0.8 0" radius="0.03" color="#c0c0c0"></a-sphere>
-                    <a-sphere position="0 0.9 0" radius="0.03" color="#c0c0c0"></a-sphere>
-                    <a-sphere position="0 1.0 0" radius="0.03" color="#c0c0c0"></a-sphere>
-                </a-entity>
+                <!-- リング -->
+                <a-torus
+                    position="0 1.0 0"
+                    color="#c0c0c0"
+                    radius="0.3"
+                    radius-tubular="0.03"
+                    material="metalness: 0.8; roughness: 0.2;"
+                    animation="property: rotation; to: 0 0 360; loop: true; dur: 15000">
+                </a-torus>
             </a-entity>
         </a-marker>
         
-        <!-- ライティング -->
-        <a-light type="ambient" color="#ffffff" intensity="0.4"></a-light>
-        <a-light type="directional" position="0 1 1" color="#ffffff" intensity="0.6"></a-light>
+        <!-- シンプルなライティング（iOS最適化） -->
+        <a-light type="ambient" color="#ffffff" intensity="0.6"></a-light>
+        <a-light type="directional" position="0 1 1" color="#ffffff" intensity="0.4"></a-light>
         
         <!-- カメラ -->
         <a-entity camera></a-entity>
     </a-scene>
 
     <script>
-        // Netlify環境の検出
-        const isNetlify = window.location.hostname.includes('netlify') || 
-                         window.location.hostname.includes('.app');
+        // iOSデバイス検出
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        const isIOSSafari = isIOS && /Safari/.test(navigator.userAgent) && !/CriOS|FxiOS/.test(navigator.userAgent);
         
         // DOM要素
         const loadingScreen = document.getElementById('loading-screen');
@@ -229,15 +227,17 @@
         const instructions = document.getElementById('instructions');
         const progress = document.getElementById('progress');
         const loadingStatus = document.getElementById('loading-status');
+        const errorDetails = document.getElementById('error-details');
         
         const cameraStatus = document.getElementById('camera-status');
         const arStatus = document.getElementById('ar-status');
         const markerStatus = document.getElementById('marker-status');
-        const netlifyStatus = document.getElementById('netlify-status');
+        const deviceStatus = document.getElementById('device-status');
         
         // 初期化状態
         let initStep = 0;
         const maxSteps = 4;
+        let initializationTimeout;
         
         // プログレス更新
         function updateProgress(step, message) {
@@ -245,6 +245,7 @@
             const percentage = (step / maxSteps) * 100;
             progress.style.width = percentage + '%';
             loadingStatus.textContent = message;
+            console.log(`Progress ${step}/${maxSteps}: ${message}`);
         }
         
         // ステータス更新
@@ -253,21 +254,40 @@
                 `<span class="status-${type}">${message}</span>`;
         }
         
-        // カメラ初期化チェック
+        // エラー詳細表示
+        function showErrorDetails(error) {
+            errorDetails.style.display = 'block';
+            errorDetails.innerHTML = `
+                <strong>エラー詳細:</strong><br>
+                ${error.name}: ${error.message}<br>
+                <small>ブラウザ: ${navigator.userAgent.slice(0, 60)}...</small>
+            `;
+        }
+        
+        // カメラ初期化チェック（iOS最適化）
         async function initializeCamera() {
             updateProgress(1, 'カメラアクセス権限を確認中...');
             
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({
+                // iOS Safari用の最適化された設定
+                const constraints = {
                     video: { 
                         facingMode: 'environment',
-                        width: { ideal: 1280, min: 640 },
-                        height: { ideal: 720, min: 480 }
+                        width: { ideal: 640, min: 480 },
+                        height: { ideal: 480, min: 360 },
+                        frameRate: { ideal: 30, max: 30 }
                     }
-                });
+                };
+                
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
                 
                 updateStatus(cameraStatus, 'アクセス許可済み', 'ok');
                 updateProgress(2, 'カメラが利用可能です');
+                
+                // ストリーム情報をログに出力
+                const videoTrack = stream.getVideoTracks()[0];
+                const settings = videoTrack.getSettings();
+                console.log('Camera settings:', settings);
                 
                 // テストストリームを停止
                 stream.getTracks().forEach(track => track.stop());
@@ -276,11 +296,12 @@
                 console.error('Camera error:', error);
                 updateStatus(cameraStatus, 'アクセス拒否またはエラー', 'error');
                 updateProgress(2, 'カメラエラー: ' + error.message);
+                showErrorDetails(error);
                 return false;
             }
         }
         
-        // AR.js初期化
+        // AR.js初期化（iOS最適化）
         function initializeAR() {
             updateProgress(3, 'AR.jsを初期化中...');
             
@@ -292,6 +313,11 @@
                 console.log('AR.js video loaded successfully');
                 updateStatus(arStatus, 'カメラ映像取得成功', 'ok');
                 updateProgress(4, 'AR初期化完了！');
+                
+                // 初期化タイムアウトをクリア
+                if (initializationTimeout) {
+                    clearTimeout(initializationTimeout);
+                }
                 
                 // UI表示
                 setTimeout(() => {
@@ -305,6 +331,7 @@
                 console.error('AR.js camera error:', event.detail);
                 updateStatus(arStatus, 'カメラエラー', 'error');
                 updateProgress(3, 'ARカメラの初期化に失敗');
+                showErrorDetails(event.detail);
             });
             
             // マーカー検出イベント
@@ -319,23 +346,23 @@
             });
         }
         
-        // Netlify環境情報表示
-        function showNetlifyInfo() {
-            if (isNetlify) {
-                updateStatus(netlifyStatus, 'デプロイ済み', 'ok');
-            } else {
-                updateStatus(netlifyStatus, 'ローカル環境', 'warning');
-            }
+        // デバイス情報表示
+        function showDeviceInfo() {
+            const deviceInfo = isIOSSafari ? 'iOS Safari' : 
+                              isIOS ? 'iOS (他ブラウザ)' : 
+                              'その他デバイス';
+            updateStatus(deviceStatus, deviceInfo, isIOSSafari ? 'ok' : 'warning');
         }
         
         // メイン初期化
         async function initialize() {
-            console.log('Initializing AR Keyholder on Netlify...');
+            console.log('Initializing AR Keyholder (iOS Optimized)...');
             console.log('User Agent:', navigator.userAgent);
             console.log('HTTPS:', location.protocol === 'https:');
             console.log('Host:', window.location.hostname);
+            console.log('iOS Safari:', isIOSSafari);
             
-            showNetlifyInfo();
+            showDeviceInfo();
             
             // カメラ初期化
             const cameraOK = await initializeCamera();
@@ -344,13 +371,21 @@
                 // AR初期化
                 initializeAR();
                 
-                // タイムアウト設定（15秒）
-                setTimeout(() => {
+                // タイムアウト設定（20秒に延長、iOS用）
+                initializationTimeout = setTimeout(() => {
                     if (initStep < maxSteps) {
                         updateProgress(initStep, 'タイムアウト - ページを再読み込みしてください');
                         updateStatus(arStatus, '初期化タイムアウト', 'error');
+                        errorDetails.style.display = 'block';
+                        errorDetails.innerHTML = `
+                            <strong>初期化タイムアウト</strong><br>
+                            以下を確認してください:<br>
+                            • カメラ権限が許可されているか<br>
+                            • 他のアプリでカメラが使用されていないか<br>
+                            • ネットワーク接続が安定しているか
+                        `;
                     }
-                }, 15000);
+                }, 20000);
             } else {
                 updateProgress(2, 'カメラアクセスが必要です');
                 setTimeout(() => {
@@ -364,12 +399,25 @@
         // 初期化開始
         document.addEventListener('DOMContentLoaded', initialize);
         
-        // デバッグ情報（Netlify用）
+        // デバッグ情報（グローバル公開）
         window.ARKeyholder = {
-            version: '1.0.0',
-            environment: isNetlify ? 'netlify' : 'local',
-            debug: !isNetlify
+            version: '1.1.0',
+            environment: 'netlify',
+            optimizedFor: 'iOS Safari',
+            debug: true,
+            reinitialize: initialize
         };
+        
+        // エラー監視
+        window.addEventListener('error', (event) => {
+            console.error('Global error:', event.error);
+            showErrorDetails(event.error);
+        });
+        
+        window.addEventListener('unhandledrejection', (event) => {
+            console.error('Unhandled promise rejection:', event.reason);
+            showErrorDetails(event.reason);
+        });
     </script>
 </body>
 </html>
