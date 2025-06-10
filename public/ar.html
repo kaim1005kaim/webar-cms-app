@@ -300,8 +300,96 @@
             toggleTestSphere: () => {
                 const sphere = document.querySelector('#test-sphere');
                 sphere.setAttribute('visible', !sphere.getAttribute('visible'));
+            },
+            loadProject: (projectId) => {
+                const url = new URL(window.location);
+                url.searchParams.set('project', projectId);
+                window.location.href = url.toString();
             }
         };
+        
+        // プロジェクトデータの読み込み
+        async function loadProjectData() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const projectId = urlParams.get('project');
+            
+            if (projectId) {
+                try {
+                    console.log('Loading project:', projectId);
+                    
+                    // APIからプロジェクトデータを取得
+                    const response = await fetch(`/api/projects/${projectId}`);
+                    let projectData;
+                    
+                    if (response.ok) {
+                        projectData = await response.json();
+                        console.log('Project loaded from API:', projectData);
+                    } else {
+                        // フォールバック: ローカルストレージから取得
+                        const projects = JSON.parse(localStorage.getItem('ar-projects') || '[]');
+                        projectData = projects.find(p => p.id === projectId);
+                        console.log('Project loaded from localStorage:', projectData);
+                    }
+                    
+                    if (projectData) {
+                        await applyProjectSettings(projectData);
+                    } else {
+                        console.warn('Project not found:', projectId);
+                        updateStatus(document.getElementById('ar-status'), 'プロジェクトが見つかりません', 'error');
+                    }
+                } catch (error) {
+                    console.error('Project loading error:', error);
+                    updateStatus(document.getElementById('ar-status'), 'プロジェクト読み込みエラー', 'error');
+                }
+            } else {
+                console.log('No project ID specified, using default settings');
+            }
+        }
+        
+        // プロジェクト設定の適用
+        async function applyProjectSettings(projectData) {
+            try {
+                console.log('Applying project settings:', projectData);
+                
+                // キャラクターモデルの設定
+                if (projectData.character && projectData.character.modelUrl) {
+                    const modelUrl = projectData.character.modelUrl;
+                    console.log('Loading character model:', modelUrl);
+                    
+                    if (modelUrl !== 'keyholder-default') {
+                        // カスタムモデルを読み込み
+                        const keyholderObject = document.querySelector('#keyholder-object');
+                        
+                        // 既存のデフォルトオブジェクトを非表示
+                        const defaultObjects = keyholderObject.querySelectorAll('a-box, a-sphere, a-torus, a-cylinder');
+                        defaultObjects.forEach(obj => obj.setAttribute('visible', false));
+                        
+                        // GLTFモデルを追加
+                        const gltfEntity = document.createElement('a-gltf-model');
+                        gltfEntity.setAttribute('src', modelUrl);
+                        gltfEntity.setAttribute('position', projectData.character.position ? 
+                            `${projectData.character.position[0]} ${projectData.character.position[1]} ${projectData.character.position[2]}` : 
+                            '0 0.5 0');
+                        gltfEntity.setAttribute('scale', `${projectData.character.scale || 1} ${projectData.character.scale || 1} ${projectData.character.scale || 1}`);
+                        
+                        keyholderObject.appendChild(gltfEntity);
+                        console.log('Custom model added:', modelUrl);
+                    }
+                }
+                
+                // プロジェクト情報を表示
+                updateStatus(document.getElementById('ar-status'), `プロジェクト: ${projectData.name}`, 'ok');
+                
+            } catch (error) {
+                console.error('Error applying project settings:', error);
+                updateStatus(document.getElementById('ar-status'), '設定適用エラー', 'error');
+            }
+        }
+        
+        // ページ読み込み時にプロジェクトデータを読み込み
+        document.addEventListener('DOMContentLoaded', () => {
+            loadProjectData();
+        });
     </script>
 </body>
 </html>

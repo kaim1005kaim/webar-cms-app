@@ -391,15 +391,71 @@
             }
         });
         
-        function handleImageUpload(file) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
+        async function handleImageUpload(file) {
+            try {
+                // バリデーション
+                if (!file.type.startsWith('image/')) {
+                    throw new Error('画像ファイルを選択してください');
+                }
+                
+                if (file.size > 10 * 1024 * 1024) { // 10MB制限
+                    throw new Error('ファイルサイズが大きすぎます（10MB以下にしてください）');
+                }
+                
+                // ローディング表示
                 uploadArea.innerHTML = `
-                    <img src="${e.target.result}" style="max-width: 100%; max-height: 200px;">
-                    <p>✅ 画像アップロード完了</p>
+                    <div style="text-align: center; padding: 20px;">
+                        <div style="margin-bottom: 10px;">📤 アップロード中...</div>
+                        <div style="width: 100%; background: #f0f0f0; border-radius: 10px; height: 6px;">
+                            <div style="width: 30%; height: 100%; background: #007bff; border-radius: 10px; animation: pulse 1s infinite;"></div>
+                        </div>
+                    </div>
                 `;
-            };
-            reader.readAsDataURL(file);
+                
+                // Base64エンコード
+                const reader = new FileReader();
+                const base64Data = await new Promise((resolve, reject) => {
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                });
+                
+                // サーバーにアップロード
+                const uploadResponse = await fetch('/api/upload', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        fileName: file.name,
+                        fileData: base64Data,
+                        projectName: document.getElementById('project-name').value || 'marker'
+                    }),
+                });
+                
+                if (uploadResponse.ok) {
+                    const result = await uploadResponse.json();
+                    // 成功時の表示
+                    uploadArea.innerHTML = `
+                        <img src="${base64Data}" style="max-width: 100%; max-height: 200px; border-radius: 8px;">
+                        <p style="color: #28a745; margin-top: 10px;">✅ ${result.fileName} アップロード完了</p>
+                        <small style="color: #6c757d;">サーバーURL: ${result.url}</small>
+                    `;
+                    uploadArea.dataset.uploadedUrl = result.url;
+                } else {
+                    throw new Error('サーバーアップロードに失敗しました');
+                }
+                
+            } catch (error) {
+                console.error('Upload error:', error);
+                uploadArea.innerHTML = `
+                    <div style="color: #dc3545; text-align: center; padding: 20px;">
+                        <p>❌ アップロードエラー</p>
+                        <small>${error.message}</small>
+                        <br><button onclick="location.reload()" style="margin-top: 10px; padding: 5px 10px; border: 1px solid #dc3545; background: white; color: #dc3545; border-radius: 4px;">再試行</button>
+                    </div>
+                `;
+            }
         }
         
         // スケール値更新
@@ -419,18 +475,16 @@
             submitBtn.textContent = '作成中...';
             
             try {
-                // マーカー画像のアップロード処理
-                const markerFileInput = document.getElementById('marker-image');
-                const markerFile = markerFileInput ? markerFileInput.files[0] : null;
-                let markerImageUrl = './placeholder.svg';
+                // アップロード済みマーカー画像のURLを取得
+                const uploadArea = document.getElementById('marker-upload');
+                let markerImageUrl = uploadArea.dataset.uploadedUrl || './placeholder.svg';
                 
-                if (markerFile) {
-                    // Base64でエンコード
-                    const reader = new FileReader();
-                    markerImageUrl = await new Promise((resolve) => {
-                        reader.onload = (e) => resolve(e.target.result);
-                        reader.readAsDataURL(markerFile);
-                    });
+                // アップロードされていない場合のチェック
+                if (!uploadArea.dataset.uploadedUrl) {
+                    const markerFileInput = document.getElementById('marker-image');
+                    if (markerFileInput && markerFileInput.files.length > 0) {
+                        throw new Error('マーカー画像をアップロードしてください（ドラッグ&ドロップまたはクリックで選択）');
+                    }
                 }
                 
                 const projectData = {
@@ -542,76 +596,219 @@
             showNotification('プロジェクト編集機能は開発中です', 'warning');
         }
         
-        function duplicateProject(projectId) {
-            const projects = JSON.parse(localStorage.getItem('ar-projects') || '[]');
-            const project = projects.find(p => p.id === projectId);
-            if (project) {
-                const newProject = {
-                    ...project,
-                    id: `project_${Date.now()}`,
-                    name: project.name + ' (コピー)',
-                    created_at: new Date().toISOString()
-                };
-                projects.push(newProject);
-                localStorage.setItem('ar-projects', JSON.stringify(projects));
-                loadProjects();
-                showNotification('プロジェクトを複製しました', 'success');
+        async function duplicateProject(projectId) {
+            try {
+                // APIから元のプロジェクトを取得
+                const response = await fetch(`/api/projects/${projectId}`);
+                let project;
+                
+                if (response.ok) {
+                    project = await response.json();
+                } else {
+                    // フォールバック: ローカルストレージから取得
+                    const projects = JSON.parse(localStorage.getItem('ar-projects') || '[]');
+                    project = projects.find(p => p.id === projectId);
+                }
+                
+                if (project) {
+                    const newProject = {
+                        ...project,
+                        id: `project_${Date.now()}`,
+                        name: project.name + ' (コピー)',
+                        created_at: new Date().toISOString()
+                    };
+                    
+                    // APIで保存を試行
+                    try {
+                        const createResponse = await fetch('/api/projects', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(newProject),
+                        });
+                        
+                        if (createResponse.ok) {
+                            showNotification('プロジェクトを複製しました', 'success');
+                        } else {
+                            throw new Error('API保存失敗');
+                        }
+                    } catch (apiError) {
+                        // フォールバック: ローカルストレージに保存
+                        const projects = JSON.parse(localStorage.getItem('ar-projects') || '[]');
+                        projects.push(newProject);
+                        localStorage.setItem('ar-projects', JSON.stringify(projects));
+                        showNotification('プロジェクトを複製しました（ローカル保存）', 'success');
+                    }
+                    
+                    await loadProjects();
+                } else {
+                    showNotification('プロジェクトが見つかりませんでした', 'error');
+                }
+            } catch (error) {
+                console.error('複製エラー:', error);
+                showNotification('プロジェクトの複製に失敗しました', 'error');
             }
         }
         
-        function deleteProject(projectId) {
+        async function deleteProject(projectId) {
             if (confirm('このプロジェクトを削除しますか？')) {
-                const projects = JSON.parse(localStorage.getItem('ar-projects') || '[]');
-                const filteredProjects = projects.filter(p => p.id !== projectId);
-                localStorage.setItem('ar-projects', JSON.stringify(filteredProjects));
-                loadProjects();
-                showNotification('プロジェクトを削除しました', 'success');
+                try {
+                    // APIで削除を試行
+                    const response = await fetch(`/api/projects/${projectId}`, {
+                        method: 'DELETE',
+                    });
+                    
+                    if (response.ok) {
+                        showNotification('プロジェクトを削除しました', 'success');
+                    } else {
+                        throw new Error('API削除失敗');
+                    }
+                } catch (apiError) {
+                    console.warn('API削除失敗、ローカルストレージから削除:', apiError);
+                    // フォールバック: ローカルストレージから削除
+                    const projects = JSON.parse(localStorage.getItem('ar-projects') || '[]');
+                    const filteredProjects = projects.filter(p => p.id !== projectId);
+                    localStorage.setItem('ar-projects', JSON.stringify(filteredProjects));
+                    showNotification('プロジェクトを削除しました（ローカル）', 'success');
+                }
+                
+                await loadProjects();
             }
         }
         
         // データ管理関数
-        function exportData() {
-            const data = {
-                projects: JSON.parse(localStorage.getItem('ar-projects') || '[]'),
-                settings: JSON.parse(localStorage.getItem('ar-settings') || '{}'),
-                exportDate: new Date().toISOString()
-            };
-            
-            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `ar-keyholder-backup-${new Date().toISOString().split('T')[0]}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
-            
-            showNotification('データをエクスポートしました', 'success');
+        async function exportData() {
+            try {
+                // APIとローカルストレージの両方からデータを収集
+                let apiProjects = [];
+                let localProjects = [];
+                let models = [];
+                
+                // APIからプロジェクトを取得
+                try {
+                    const projectsResponse = await fetch('/api/projects');
+                    if (projectsResponse.ok) {
+                        const projectsData = await projectsResponse.json();
+                        apiProjects = projectsData.projects || [];
+                    }
+                } catch (apiError) {
+                    console.warn('API projects export failed:', apiError);
+                }
+                
+                // APIからモデルを取得
+                try {
+                    const modelsResponse = await fetch('/api/models');
+                    if (modelsResponse.ok) {
+                        const modelsData = await modelsResponse.json();
+                        models = modelsData.models || [];
+                    }
+                } catch (apiError) {
+                    console.warn('API models export failed:', apiError);
+                }
+                
+                // ローカルストレージからデータを取得
+                localProjects = JSON.parse(localStorage.getItem('ar-projects') || '[]');
+                const settings = JSON.parse(localStorage.getItem('ar-settings') || '{}');
+                
+                // 重複を除去してマージ
+                const allProjects = [...apiProjects];
+                localProjects.forEach(localProject => {
+                    if (!allProjects.find(p => p.id === localProject.id)) {
+                        allProjects.push(localProject);
+                    }
+                });
+                
+                const exportData = {
+                    projects: allProjects,
+                    models: models,
+                    settings: settings,
+                    exportDate: new Date().toISOString(),
+                    source: {
+                        api: apiProjects.length,
+                        localStorage: localProjects.length,
+                        total: allProjects.length
+                    }
+                };
+                
+                const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `ar-keyholder-backup-${new Date().toISOString().split('T')[0]}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+                
+                showNotification(`データをエクスポートしました（${allProjects.length}プロジェクト）`, 'success');
+            } catch (error) {
+                console.error('Export error:', error);
+                showNotification('エクスポートに失敗しました', 'error');
+            }
         }
         
-        function importData() {
+        async function importData() {
             const input = document.createElement('input');
             input.type = 'file';
             input.accept = '.json';
-            input.onchange = (e) => {
+            input.onchange = async (e) => {
                 const file = e.target.files[0];
                 if (file) {
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        try {
-                            const data = JSON.parse(e.target.result);
-                            if (data.projects) {
-                                localStorage.setItem('ar-projects', JSON.stringify(data.projects));
+                    try {
+                        const text = await new Promise((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onload = (e) => resolve(e.target.result);
+                            reader.onerror = reject;
+                            reader.readAsText(file);
+                        });
+                        
+                        const data = JSON.parse(text);
+                        let importedCount = 0;
+                        let errorCount = 0;
+                        
+                        // プロジェクトデータのインポート
+                        if (data.projects && Array.isArray(data.projects)) {
+                            for (const project of data.projects) {
+                                try {
+                                    // APIに保存を試行
+                                    const response = await fetch('/api/projects', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                            ...project,
+                                            id: `imported_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // 新しいIDを生成
+                                            created_at: new Date().toISOString()
+                                        }),
+                                    });
+                                    
+                                    if (response.ok) {
+                                        importedCount++;
+                                    } else {
+                                        throw new Error('API保存失敗');
+                                    }
+                                } catch (apiError) {
+                                    // フォールバック: ローカルストレージに保存
+                                    const localProjects = JSON.parse(localStorage.getItem('ar-projects') || '[]');
+                                    localProjects.push({
+                                        ...project,
+                                        id: `imported_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                                        created_at: new Date().toISOString()
+                                    });
+                                    localStorage.setItem('ar-projects', JSON.stringify(localProjects));
+                                    importedCount++;
+                                }
                             }
-                            if (data.settings) {
-                                localStorage.setItem('ar-settings', JSON.stringify(data.settings));
-                            }
-                            loadProjects();
-                            showNotification('データをインポートしました', 'success');
-                        } catch (error) {
-                            showNotification('ファイルの読み込みに失敗しました', 'error');
                         }
-                    };
-                    reader.readAsText(file);
+                        
+                        // 設定データの保存
+                        if (data.settings) {
+                            localStorage.setItem('ar-settings', JSON.stringify(data.settings));
+                        }
+                        
+                        await loadProjects();
+                        showNotification(`データをインポートしました（${importedCount}プロジェクト）`, 'success');
+                        
+                    } catch (error) {
+                        console.error('Import error:', error);
+                        showNotification('ファイルの読み込みに失敗しました', 'error');
+                    }
                 }
             };
             input.click();
