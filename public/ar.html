@@ -2,17 +2,37 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>AR Keyholder - Position Fixed</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, shrink-to-fit=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="format-detection" content="telephone=no">
+    <title>AR Keyholder - Enhanced WebAR</title>
     <!-- 安定版のCDN使用 -->
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.0/aframe/build/aframe-ar.js"></script>
+    <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+    <script src="https://unpkg.com/three@0.160.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script type="module" src="/src/main.ts"></script>
     <style>
         body { 
             margin: 0; 
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; 
             overflow: hidden; 
             background: #000;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+        
+        /* iOS Safari特化最適化 */
+        @supports (-webkit-appearance: none) {
+            body {
+                padding-top: env(safe-area-inset-top);
+                padding-bottom: env(safe-area-inset-bottom);
+                padding-left: env(safe-area-inset-left);
+                padding-right: env(safe-area-inset-right);
+            }
         }
         
         #ar-scene { 
@@ -170,18 +190,30 @@
         <div class="status-item" id="ar-status">🔍 AR: 待機中</div>
         <div class="status-item" id="marker-status">📍 マーカー: 未検出</div>
         <div class="status-item" id="position-status">📐 位置: 調整中</div>
+        <div class="status-item" id="masking-status">🎭 マスキング: 最適化済み</div>
+        <div class="status-item" id="ios-status">📱 iOS: 検出中</div>
     </div>
     
     <!-- 位置調整コントロール -->
     <div id="position-controls">
         <div><strong>位置微調整:</strong></div>
-        <div>
+        <div style="margin: 5px 0;">
             <button class="position-btn" onclick="adjustPosition('left')">←</button>
             <button class="position-btn" onclick="adjustPosition('up')">↑</button>
             <button class="position-btn" onclick="adjustPosition('down')">↓</button>
             <button class="position-btn" onclick="adjustPosition('right')">→</button>
-            <button class="position-btn" onclick="resetPosition()">リセット</button>
         </div>
+        <div style="margin: 5px 0;">
+            <button class="position-btn" onclick="adjustPosition('forward')">Z+</button>
+            <button class="position-btn" onclick="adjustPosition('backward')">Z-</button>
+            <button class="position-btn" onclick="resetPosition()" style="background: rgba(231, 76, 60, 0.8);">リセット</button>
+        </div>
+        <div style="margin: 5px 0; font-size: 10px;">
+            <button class="position-btn" onclick="setPresetPosition('center')" style="font-size: 10px;">中央</button>
+            <button class="position-btn" onclick="setPresetPosition('elevated')" style="font-size: 10px;">上昇</button>
+            <button class="position-btn" onclick="setPresetPosition('forward')" style="font-size: 10px;">前進</button>
+        </div>
+        <div id="debug-info" style="font-size: 10px; color: #bdc3c7; margin-top: 5px;">Pos: (0.000, 0.000, 0.000)</div>
     </div>
     
     <!-- 使用方法 -->
@@ -192,6 +224,9 @@
         3. 「リセット」ボタンで初期位置に戻る
     </div>
 
+    <!-- WebGPU Canvas (overlay) -->
+    <canvas id="webgpu-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none;"></canvas>
+    
     <!-- AR.js Scene - 位置精密調整 -->
     <a-scene
         id="ar-scene"
@@ -204,101 +239,135 @@
             debugUIEnabled: false; 
             detectionMode: mono_and_matrix; 
             matrixCodeType: 3x3;
-            sourceWidth: 640;
-            sourceHeight: 480;
-            displayWidth: 640;
-            displayHeight: 480;
-            maxDetectionRate: 60;
-            canvasWidth: 640;
-            canvasHeight: 480;
+            sourceWidth: 1280;
+            sourceHeight: 720;
+            displayWidth: 1280;
+            displayHeight: 720;
+            maxDetectionRate: 30;
+            canvasWidth: 1280;
+            canvasHeight: 720;
+            smoothCount: 10;
+            smoothTolerance: 0.01;
+            smoothThreshold: 5;
         "
         loading-screen="enabled: false">
         
-        <!-- Hiroマーカー - 位置調整可能 -->
+        <!-- Hiroマーカー - マスキング最適化 -->
         <a-marker 
             preset="hiro" 
             id="hiro-marker"
             smooth="true"
-            smoothCount="5"
-            smoothTolerance="0.01"
-            smoothThreshold="2">
+            smoothCount="10"
+            smoothTolerance="0.005"
+            smoothThreshold="3"
+            raycaster="objects: .clickable"
+            cursor="rayOrigin: mouse">
             
-            <!-- 3Dキーホルダーオブジェクト - 初期位置を右に調整 -->
-            <a-entity id="keyholder-object" position="0.3 0 0">
+            <!-- 3Dキーホルダーオブジェクト - 中央配置で精密調整 -->
+            <a-entity id="keyholder-object" position="0 0 0">
                 
                 <!-- センター基準点（デバッグ用） -->
                 <a-sphere 
                     id="center-point"
                     position="0 0 0"
-                    radius="0.03"
+                    radius="0.02"
                     color="#00ff00"
-                    material="emissive: #00ff00; emissiveIntensity: 0.8;"
+                    material="emissive: #00ff00; emissiveIntensity: 0.5; transparent: true; opacity: 0.8;"
                     visible="true">
                 </a-sphere>
                 
+                <!-- マーカー中心線表示 (デバッグ用) -->
+                <a-cylinder
+                    id="x-axis"
+                    position="0 0 0"
+                    radius="0.003"
+                    height="1"
+                    rotation="0 0 90"
+                    color="#ff0000"
+                    material="emissive: #ff0000; emissiveIntensity: 0.3; transparent: true; opacity: 0.6;"
+                    visible="true">
+                </a-cylinder>
+                <a-cylinder
+                    id="z-axis"
+                    position="0 0 0"
+                    radius="0.003"
+                    height="1"
+                    rotation="90 0 0"
+                    color="#0000ff"
+                    material="emissive: #0000ff; emissiveIntensity: 0.3; transparent: true; opacity: 0.6;"
+                    visible="true">
+                </a-cylinder>
+                
                 <!-- メインキーホルダーボディ -->
                 <a-box
-                    position="0 0.4 0"
-                    width="0.5"
-                    height="0.7"
-                    depth="0.2"
-                    color="#ff6b6b"
-                    material="roughness: 0.5; metalness: 0.3;"
-                    animation="property: rotation; to: 0 360 0; loop: true; dur: 12000">
+                    id="main-body"
+                    position="0 0.35 0"
+                    width="0.4"
+                    height="0.6"
+                    depth="0.15"
+                    color="#e74c3c"
+                    material="roughness: 0.3; metalness: 0.7; emissive: #441111; emissiveIntensity: 0.1;"
+                    animation="property: rotation; to: 0 360 0; loop: true; dur: 10000; easing: linear">
                     
                     <!-- キャラクターの顔 -->
                     <a-sphere
-                        position="0 0.2 0.12"
-                        radius="0.1"
-                        color="#ffeb3b"
-                        material="roughness: 0.8; metalness: 0.1;">
+                        id="character-head"
+                        position="0 0.15 0.08"
+                        radius="0.08"
+                        color="#f39c12"
+                        material="roughness: 0.6; metalness: 0.2; emissive: #443311; emissiveIntensity: 0.05;">
                         
                         <!-- 目 -->
-                        <a-sphere position="-0.03 0.02 0.08" radius="0.012" color="#000"></a-sphere>
-                        <a-sphere position="0.03 0.02 0.08" radius="0.012" color="#000"></a-sphere>
+                        <a-sphere position="-0.025 0.015 0.065" radius="0.01" color="#000" material="emissive: #000; emissiveIntensity: 0.3;"></a-sphere>
+                        <a-sphere position="0.025 0.015 0.065" radius="0.01" color="#000" material="emissive: #000; emissiveIntensity: 0.3;"></a-sphere>
                         
                         <!-- 口 -->
                         <a-cylinder 
-                            position="0 -0.025 0.08"
-                            radius="0.025"
-                            height="0.003"
+                            position="0 -0.02 0.065"
+                            radius="0.02"
+                            height="0.002"
                             rotation="90 0 0"
-                            color="#000">
+                            color="#000"
+                            material="emissive: #000; emissiveIntensity: 0.2;">
                         </a-cylinder>
                     </a-sphere>
                     
                     <!-- 腕 -->
-                    <a-sphere position="-0.3 0 0" radius="0.05" color="#ffeb3b"></a-sphere>
-                    <a-sphere position="0.3 0 0" radius="0.05" color="#ffeb3b"></a-sphere>
+                    <a-sphere position="-0.25 0.05 0" radius="0.04" color="#f39c12" material="roughness: 0.6; metalness: 0.2;"></a-sphere>
+                    <a-sphere position="0.25 0.05 0" radius="0.04" color="#f39c12" material="roughness: 0.6; metalness: 0.2;"></a-sphere>
                 </a-box>
                 
                 <!-- キーリング -->
                 <a-torus
-                    position="0 0.8 0"
-                    color="#c0c0c0"
-                    radius="0.2"
-                    radius-tubular="0.025"
-                    material="metalness: 0.9; roughness: 0.1;"
-                    animation="property: rotation; to: 360 0 0; loop: true; dur: 8000">
+                    id="key-ring"
+                    position="0 0.7 0"
+                    color="#bdc3c7"
+                    radius="0.15"
+                    radius-tubular="0.02"
+                    material="metalness: 0.95; roughness: 0.05; emissive: #333333; emissiveIntensity: 0.1;"
+                    animation="property: rotation; to: 360 0 0; loop: true; dur: 6000; easing: linear">
                 </a-torus>
                 
-                <!-- ベース台座 - マーカー位置確認用 -->
+                <!-- ベース台座 - マーカー位置確認用（マスキング対応） -->
                 <a-cylinder
-                    position="0 0.02 0"
-                    radius="0.3"
-                    height="0.01"
-                    color="#333333"
-                    material="metalness: 0.8; roughness: 0.2; opacity: 0.8; transparent: true;">
+                    id="base-platform"
+                    position="0 0.002 0"
+                    radius="0.22"
+                    height="0.002"
+                    color="#34495e"
+                    material="metalness: 0.6; roughness: 0.4; opacity: 0.3; transparent: true; emissive: #111111; emissiveIntensity: 0.02; depthWrite: false; alphaTest: 0.1;">
                 </a-cylinder>
                 
-                <!-- マーカー中央を示す柱 -->
-                <a-cylinder
-                    position="0 0.1 0"
-                    radius="0.01"
-                    height="0.2"
-                    color="#00ff00"
-                    material="emissive: #00ff00; emissiveIntensity: 0.5;">
-                </a-cylinder>
+                <!-- マーカー境界インジケーター -->
+                <a-ring
+                    id="marker-boundary"
+                    position="0 0.001 0"
+                    radius-inner="0.4"
+                    radius-outer="0.42"
+                    color="#3498db"
+                    material="opacity: 0.6; transparent: true; emissive: #3498db; emissiveIntensity: 0.3; depthWrite: false;"
+                    visible="false">
+                </a-ring>
             </a-entity>
         </a-marker>
         
@@ -313,8 +382,10 @@
     <script>
         // グローバル変数
         let arScene, marker, keyholderObject;
-        let currentPosition = { x: 0.3, y: 0, z: 0 }; // 初期位置を右に調整
+        let currentPosition = { x: 0, y: 0, z: 0 }; // 中央基準の精密位置
         let initializationComplete = false;
+        let webARApp = null; // TypeScript WebAR app instance
+        let useWebGPU = false; // WebGPU availability flag
         
         // DOM要素
         const loadingScreen = document.getElementById('loading-screen');
@@ -346,6 +417,12 @@
                 case 'down':
                     currentPosition.y -= step;
                     break;
+                case 'forward':
+                    currentPosition.z += step;
+                    break;
+                case 'backward':
+                    currentPosition.z -= step;
+                    break;
             }
             
             updateObjectPosition();
@@ -353,6 +430,29 @@
         
         function resetPosition() {
             currentPosition = { x: 0, y: 0, z: 0 }; // 完全な中央
+            updateObjectPosition();
+            console.log('位置をリセットしました');
+        }
+        
+        // 精密調整機能
+        function fineAdjustPosition(axis, delta) {
+            currentPosition[axis] += delta;
+            updateObjectPosition();
+        }
+        
+        // プリセット位置
+        function setPresetPosition(preset) {
+            switch(preset) {
+                case 'center':
+                    currentPosition = { x: 0, y: 0, z: 0 };
+                    break;
+                case 'elevated':
+                    currentPosition = { x: 0, y: 0.1, z: 0 };
+                    break;
+                case 'forward':
+                    currentPosition = { x: 0, y: 0, z: 0.1 };
+                    break;
+            }
             updateObjectPosition();
         }
         
@@ -362,7 +462,13 @@
                 keyholderObject.setAttribute('position', posStr);
                 console.log(`Position updated to: ${posStr}`);
                 
-                updateStatus(positionStatus, `X:${currentPosition.x.toFixed(1)} Y:${currentPosition.y.toFixed(1)}`, 'ok');
+                updateStatus(positionStatus, `X:${currentPosition.x.toFixed(2)} Y:${currentPosition.y.toFixed(2)} Z:${currentPosition.z.toFixed(2)}`, 'ok');
+                
+                // デバッグ情報表示
+                const debugInfo = document.getElementById('debug-info');
+                if (debugInfo) {
+                    debugInfo.textContent = `Pos: (${currentPosition.x.toFixed(3)}, ${currentPosition.y.toFixed(3)}, ${currentPosition.z.toFixed(3)})`;
+                }
             }
         }
         
@@ -379,10 +485,104 @@
                 `<span class="status-${type}">${message}</span>`;
         }
         
+        // iOS Safari最適化関数
+        function optimizeForIOSSafari() {
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+            const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+            
+            if (isIOS && isSafari) {
+                console.log('iOS Safariでの最適化を適用中...');
+                
+                // カメラ解像度をiOS用に調整
+                if (arScene) {
+                    arScene.setAttribute('arjs', `
+                        trackingMethod: best;
+                        sourceType: webcam;
+                        debugUIEnabled: false;
+                        detectionMode: mono_and_matrix;
+                        matrixCodeType: 3x3;
+                        sourceWidth: 960;
+                        sourceHeight: 640;
+                        displayWidth: 960;
+                        displayHeight: 640;
+                        maxDetectionRate: 25;
+                        canvasWidth: 960;
+                        canvasHeight: 640;
+                        smoothCount: 15;
+                        smoothTolerance: 0.005;
+                        smoothThreshold: 8;
+                    `);
+                }
+                
+                // パフォーマンス最適化
+                document.addEventListener('touchstart', function() {}, { passive: true });
+                document.addEventListener('touchmove', function(e) { e.preventDefault(); }, { passive: false });
+                
+                // フルスクリーンモード促進
+                if (document.documentElement.requestFullscreen) {
+                    setTimeout(() => {
+                        const fullscreenBtn = document.createElement('button');
+                        fullscreenBtn.innerHTML = '📱 フルスクリーン';
+                        fullscreenBtn.style.cssText = 'position: fixed; top: 60px; right: 20px; z-index: 9999; background: rgba(52, 152, 219, 0.9); color: white; border: none; padding: 8px 12px; border-radius: 6px; font-size: 12px;';
+                        fullscreenBtn.onclick = () => {
+                            document.documentElement.requestFullscreen();
+                            fullscreenBtn.remove();
+                        };
+                        document.body.appendChild(fullscreenBtn);
+                    }, 3000);
+                }
+                
+                return true;
+            }
+            return false;
+        }
+        
+        // マスキング最適化関数
+        function adjustRenderingOrder() {
+            // 3Dオブジェクトのレンダリング順序を調整してマスキング問題を解決
+            const keyholderObject = document.getElementById('keyholder-object');
+            const basePlatform = document.getElementById('base-platform');
+            
+            if (keyholderObject) {
+                // レンダリング順序を設定（低い値が先にレンダリング）
+                keyholderObject.setAttribute('material', 'depthTest: true; depthWrite: true;');
+            }
+            
+            if (basePlatform) {
+                // ベース台座は最後にレンダリング
+                basePlatform.setAttribute('material', 'depthTest: false; depthWrite: false; renderOrder: 999;');
+            }
+        }
+        
         // AR初期化
-        function initializeAR() {
-            console.log('Starting position-adjustable AR...');
+        async function initializeAR() {
+            console.log('Starting enhanced AR with iOS Safari optimization...');
             updateProgress(25, 'A-Frameを初期化中...');
+            
+            // iOS Safari最適化を先に実行
+            const isIOSOptimized = optimizeForIOSSafari();
+            if (isIOSOptimized) {
+                updateProgress(30, 'iOS Safari最適化適用済み...');
+                updateStatus(document.getElementById('ios-status'), 'Safari最適化済み', 'ok');
+            } else {
+                updateStatus(document.getElementById('ios-status'), '標準ブラウザ', 'ok');
+            }
+            
+            // WebGPU対応チェック（iOSでは無効化）
+            if (navigator.gpu && !isIOSOptimized) {
+                try {
+                    updateProgress(35, 'WebGPU初期化中...');
+                    // WebGPU初期化は main.ts で処理
+                    useWebGPU = true;
+                    console.log('WebGPU支援が利用可能です');
+                } catch (error) {
+                    console.warn('WebGPU初期化失敗、WebGLフォールバック:', error);
+                    useWebGPU = false;
+                }
+            } else if (isIOSOptimized) {
+                console.log('iOS SafariではWebGLを使用します');
+                useWebGPU = false;
+            }
             
             if (typeof AFRAME !== 'undefined') {
                 setupARScene();
@@ -413,13 +613,28 @@
                 initializationComplete = true;
             });
             
-            // マーカー検出イベント
+            // マーカー検出イベント（マスキング最適化）
             marker.addEventListener('markerFound', () => {
-                console.log('🎯 Hiro marker detected - showing position controls!');
-                updateStatus(markerStatus, '検出中 - 位置調整可能!', 'ok');
+                console.log('🎯 Hiro marker detected - starting enhanced rendering!');
+                updateStatus(markerStatus, '検出中 - 高精細レンダリング開始!', 'ok');
                 
                 // 位置調整コントロールを表示
                 positionControls.style.display = 'block';
+                
+                // マーカー境界インジケーターを表示
+                const boundary = document.getElementById('marker-boundary');
+                if (boundary) {
+                    boundary.setAttribute('visible', 'true');
+                }
+                
+                // WebGPUレンダリングを通知
+                if (useWebGPU && webARApp) {
+                    const markerMatrix = marker.object3D.matrixWorld.elements;
+                    webARApp.onMarkerFound(markerMatrix);
+                }
+                
+                // マスキング品質向上のためのZ-index調整
+                adjustRenderingOrder();
                 
                 // 初期位置を適用
                 updateObjectPosition();
@@ -429,6 +644,17 @@
                 console.log('Hiro marker lost');
                 updateStatus(markerStatus, '未検出', 'warning');
                 updateStatus(positionStatus, '調整中', 'warning');
+                
+                // マーカー境界インジケーターを非表示
+                const boundary = document.getElementById('marker-boundary');
+                if (boundary) {
+                    boundary.setAttribute('visible', 'false');
+                }
+                
+                // WebGPUレンダリングを停止
+                if (useWebGPU && webARApp) {
+                    webARApp.onMarkerLost();
+                }
                 
                 // 位置調整コントロールを非表示
                 positionControls.style.display = 'none';
@@ -456,11 +682,43 @@
             console.log('🚀 Position-adjustable AR interface ready!');
         }
         
+        // iOS Safari用カメラアクセス最適化
+        function requestCameraPermission() {
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                return navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        facingMode: 'environment',
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    } 
+                }).then(stream => {
+                    // ストリームを停止（AR.jsが取り直して使用）
+                    stream.getTracks().forEach(track => track.stop());
+                    return true;
+                }).catch(error => {
+                    console.warn('カメラアクセスが拒否されました:', error);
+                    return false;
+                });
+            }
+            return Promise.resolve(false);
+        }
+        
         // 初期化開始
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log('🎯 AR Keyholder - Position Adjustment Version');
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log('🎯 AR Keyholder - iOS Safari Optimized Version');
             
-            updateProgress(10, '位置調整システム初期化中...');
+            updateProgress(5, 'デバイス検出中...');
+            
+            // iOS Safariでのカメラアクセス確認
+            const cameraPermitted = await requestCameraPermission();
+            if (!cameraPermitted) {
+                updateStatus(cameraStatus, 'アクセス許可が必要', 'error');
+                setTimeout(() => {
+                    alert('カメラアクセスを許可してください。');
+                }, 1000);
+            }
+            
+            updateProgress(10, 'システム初期化中...');
             updateStatus(cameraStatus, '準備中...', 'warning');
             
             setTimeout(initializeAR, 500);
@@ -468,17 +726,57 @@
         
         // グローバルデバッグ機能
         window.ARKeyholder = {
-            version: '2.2.0-position-fix',
+            version: '3.0.0-ios-safari-optimized',
             adjustLeft: () => adjustPosition('left'),
             adjustRight: () => adjustPosition('right'),
             adjustUp: () => adjustPosition('up'),
             adjustDown: () => adjustPosition('down'),
+            adjustForward: () => adjustPosition('forward'),
+            adjustBackward: () => adjustPosition('backward'),
+            fineLeft: () => fineAdjustPosition('x', -0.01),
+            fineRight: () => fineAdjustPosition('x', 0.01),
+            fineUp: () => fineAdjustPosition('y', 0.01),
+            fineDown: () => fineAdjustPosition('y', -0.01),
+            fineForward: () => fineAdjustPosition('z', 0.01),
+            fineBackward: () => fineAdjustPosition('z', -0.01),
             reset: resetPosition,
+            setPreset: setPresetPosition,
             setPosition: (x, y, z) => {
                 currentPosition = { x, y, z };
                 updateObjectPosition();
             },
-            getPosition: () => currentPosition
+            getPosition: () => currentPosition,
+            toggleDebug: () => {
+                const centerPoint = document.getElementById('center-point');
+                const xAxis = document.getElementById('x-axis');
+                const zAxis = document.getElementById('z-axis');
+                const boundary = document.getElementById('marker-boundary');
+                if (centerPoint) {
+                    const visible = centerPoint.getAttribute('visible') === 'true';
+                    centerPoint.setAttribute('visible', !visible);
+                    if (xAxis) xAxis.setAttribute('visible', !visible);
+                    if (zAxis) zAxis.setAttribute('visible', !visible);
+                    if (boundary) boundary.setAttribute('visible', !visible);
+                }
+            },
+            optimizeMasking: () => {
+                adjustRenderingOrder();
+                console.log('Masking optimization applied');
+            },
+            optimizeForIOS: () => {
+                const result = optimizeForIOSSafari();
+                console.log('iOS optimization:', result ? 'applied' : 'not applicable');
+                return result;
+            },
+            getDeviceInfo: () => {
+                return {
+                    userAgent: navigator.userAgent,
+                    isIOS: /iPad|iPhone|iPod/.test(navigator.userAgent),
+                    isSafari: /^((?!chrome|android).)*safari/i.test(navigator.userAgent),
+                    webGPU: !!navigator.gpu,
+                    devicePixelRatio: window.devicePixelRatio
+                };
+            }
         };
         
         // キーボードコントロール

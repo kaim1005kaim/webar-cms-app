@@ -102,8 +102,10 @@
                             <label for="character-model">3Dキャラクターモデル</label>
                             <select id="character-model" name="characterModel">
                                 <option value="">モデルを選択...</option>
-                                <option value="https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Duck/glTF-Binary/Duck.glb">アヒル</option>
-                                <option value="https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Box/glTF-Binary/Box.glb">キューブ</option>
+                                <option value="keyholder-default">デフォルトキーホルダー (WebGPU最適化)</option>
+                                <option value="https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Duck/glTF-Binary/Duck.glb">アヒル (外部)</option>
+                                <option value="https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Box/glTF-Binary/Box.glb">キューブ (外部)</option>
+                                <option value="https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Avocado/glTF-Binary/Avocado.glb">アボカド (外部)</option>
                             </select>
                         </div>
                         
@@ -160,19 +162,39 @@
             const container = document.getElementById('projects-list');
             container.innerHTML = '';
             
+            if (!projects || projects.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 2rem; color: #666;">
+                        <h3>📦 プロジェクトがありません</h3>
+                        <p>「新規作成」タブから最初のプロジェクトを作成しましょう！</p>
+                    </div>
+                `;
+                return;
+            }
+            
             projects.forEach(project => {
                 const card = document.createElement('div');
                 card.className = 'project-card';
                 card.innerHTML = `
-                    <img src="${project.marker.imageUrl || './placeholder.svg'}" alt="${project.name}">
+                    <img src="${project.marker?.imageUrl || './placeholder.svg'}" alt="${project.name}" onerror="this.src='./placeholder.svg'">
                     <div class="project-card-content">
                         <h3>${project.name}</h3>
-                        <p>${project.metadata.description || '説明なし'}</p>
-                        <button class="btn btn-primary" onclick="viewAR('${project.id}')">📱 AR表示</button>
+                        <p>${project.metadata?.description || '説明なし'}</p>
+                        <p><small>作成者: ${project.creator?.name || 'Unknown'}</small></p>
+                        <p><small>作成日: ${new Date(project.created_at).toLocaleDateString()}</small></p>
+                        <div style="margin-top: 1rem;">
+                            <button class="btn btn-primary" onclick="viewAR('${project.id}')">📱 AR表示</button>
+                            <button class="btn btn-secondary" onclick="editProject('${project.id}')" style="margin-left: 0.5rem; background: #95a5a6;">✏️ 編集</button>
+                        </div>
                     </div>
                 `;
                 container.appendChild(card);
             });
+        }
+        
+        function editProject(projectId) {
+            // プロジェクト編集機能（将来実装）
+            alert(`プロジェクト ${projectId} の編集機能は開発中です。`);
         }
         
         function viewAR(projectId) {
@@ -227,22 +249,44 @@
             e.preventDefault();
             
             const formData = new FormData(e.target);
+            
+            // マーカー画像のアップロード処理
+            const markerFile = document.getElementById('marker-image').files[0];
+            let markerImageUrl = './placeholder.svg';
+            
+            if (markerFile) {
+                // 実際のアップロード処理（簡易版）
+                const reader = new FileReader();
+                markerImageUrl = await new Promise((resolve) => {
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.readAsDataURL(markerFile);
+                });
+            }
+            
             const projectData = {
+                id: `project_${Date.now()}`,
                 name: formData.get('name'),
+                creator: {
+                    userId: 'admin',
+                    name: 'Administrator'
+                },
                 metadata: {
                     description: formData.get('description'),
+                    tags: [],
                     isPublic: true
                 },
                 character: {
                     modelUrl: formData.get('characterModel'),
                     scale: parseFloat(formData.get('scale')),
                     position: [0, 0.5, 0],
-                    animations: []
+                    animations: ['rotation']
                 },
                 marker: {
-                    imageUrl: './markers/uploaded-marker.jpg', // 実際はアップロード処理が必要
-                    nftDescriptor: './markers/uploaded-marker'
-                }
+                    imageUrl: markerImageUrl,
+                    nftDescriptor: `./markers/${formData.get('name').replace(/\s+/g, '_').toLowerCase()}`,
+                    printTemplate: 'A4'
+                },
+                created_at: new Date().toISOString()
             };
             
             try {
@@ -254,9 +298,15 @@
                 
                 if (response.ok) {
                     alert('✅ プロジェクトが作成されました！');
+                    document.getElementById('create-project-form').reset();
+                    uploadArea.innerHTML = `
+                        <p>📁 クリックまたはドラッグ&ドロップで画像をアップロード</p>
+                        <p><small>推奨: 高コントラスト、複雑なパターン、512x512px以上</small></p>
+                    `;
                     showTab('projects');
                 } else {
-                    alert('❌ プロジェクト作成に失敗しました');
+                    const errorData = await response.json();
+                    alert(`❌ プロジェクト作成に失敗しました: ${errorData.error?.message || '不明なエラー'}`);
                 }
             } catch (error) {
                 console.error('プロジェクト作成エラー:', error);
@@ -264,8 +314,26 @@
             }
         });
         
+        // WebGPU対応チェック
+        function checkWebGPUSupport() {
+            const webgpuStatus = document.createElement('div');
+            webgpuStatus.style.cssText = 'position: fixed; top: 10px; right: 10px; background: rgba(0,0,0,0.8); color: white; padding: 10px; border-radius: 5px; font-size: 12px; z-index: 9999;';
+            
+            if (navigator.gpu) {
+                webgpuStatus.innerHTML = '🚀 WebGPU対応';
+                webgpuStatus.style.background = 'rgba(39, 174, 96, 0.9)';
+            } else {
+                webgpuStatus.innerHTML = '⚠️ WebGL使用';
+                webgpuStatus.style.background = 'rgba(230, 126, 34, 0.9)';
+            }
+            
+            document.body.appendChild(webgpuStatus);
+            setTimeout(() => webgpuStatus.remove(), 3000);
+        }
+        
         // 初期読み込み
         loadProjects();
+        checkWebGPUSupport();
     </script>
 </body>
 </html>

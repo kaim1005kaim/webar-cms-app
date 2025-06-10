@@ -1,4 +1,4 @@
-// 環境設定の統一管理
+// Enhanced configuration management for WebAR application
 
 interface AppConfig {
   api: {
@@ -15,10 +15,27 @@ interface AppConfig {
       tolerance: number;
       threshold: number;
     };
+    // New: Resolution settings for different devices
+    resolution: {
+      standard: ResolutionConfig;
+      ios: ResolutionConfig;
+    };
   };
   webgpu: {
     fallbackToWebGL: boolean;
     preferredFormat: string;
+    antialias: boolean;
+    powerPreference: 'low-power' | 'high-performance';
+  };
+  positioning: {
+    defaultPosition: { x: number; y: number; z: number };
+    adjustmentStep: number;
+    fineAdjustmentStep: number;
+    presets: {
+      center: { x: number; y: number; z: number };
+      elevated: { x: number; y: number; z: number };
+      forward: { x: number; y: number; z: number };
+    };
   };
   cache: {
     models: number; // seconds
@@ -27,10 +44,21 @@ interface AppConfig {
   development: {
     enableLogs: boolean;
     enablePerformanceMonitoring: boolean;
+    logLevel: 'debug' | 'info' | 'warn' | 'error';
   };
 }
 
-// 環境別設定
+interface ResolutionConfig {
+  sourceWidth: number;
+  sourceHeight: number;
+  displayWidth: number;
+  displayHeight: number;
+  maxDetectionRate: number;
+  canvasWidth: number;
+  canvasHeight: number;
+}
+
+// Enhanced environment configurations
 const developmentConfig: AppConfig = {
   api: {
     baseURL: '',
@@ -46,10 +74,42 @@ const developmentConfig: AppConfig = {
       tolerance: 0.01,
       threshold: 5,
     },
+    resolution: {
+      standard: {
+        sourceWidth: 1280,
+        sourceHeight: 720,
+        displayWidth: 1280,
+        displayHeight: 720,
+        maxDetectionRate: 30,
+        canvasWidth: 1280,
+        canvasHeight: 720,
+      },
+      ios: {
+        sourceWidth: 960,
+        sourceHeight: 640,
+        displayWidth: 960,
+        displayHeight: 640,
+        maxDetectionRate: 25,
+        canvasWidth: 960,
+        canvasHeight: 640,
+      },
+    },
   },
   webgpu: {
     fallbackToWebGL: true,
     preferredFormat: 'bgra8unorm',
+    antialias: true,
+    powerPreference: 'high-performance',
+  },
+  positioning: {
+    defaultPosition: { x: 0, y: 0, z: 0 },
+    adjustmentStep: 0.1,
+    fineAdjustmentStep: 0.01,
+    presets: {
+      center: { x: 0, y: 0, z: 0 },
+      elevated: { x: 0, y: 0.1, z: 0 },
+      forward: { x: 0, y: 0, z: 0.1 },
+    },
   },
   cache: {
     models: 3600, // 1 hour
@@ -58,6 +118,7 @@ const developmentConfig: AppConfig = {
   development: {
     enableLogs: true,
     enablePerformanceMonitoring: true,
+    logLevel: 'debug',
   },
 };
 
@@ -74,11 +135,12 @@ const productionConfig: AppConfig = {
   development: {
     enableLogs: false,
     enablePerformanceMonitoring: false,
+    logLevel: 'error',
   },
 };
 
-// 環境判定
-const isProduction = process.env.NODE_ENV === 'production';
+// Environment detection with fallback
+const isProduction = typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'production';
 const isDevelopment = !isProduction;
 
 export const config: AppConfig = isProduction ? productionConfig : developmentConfig;
@@ -89,27 +151,31 @@ export const ENV = {
   nodeEnv: process.env.NODE_ENV || 'development',
 } as const;
 
-// ログユーティリティ
+// Enhanced logging utility with levels
 export const logger = {
-  debug: (...args: any[]) => {
-    if (config.development.enableLogs) {
-      console.log('[DEBUG]', ...args);
+  debug: (msg: string, ...args: any[]) => {
+    if (config.development.enableLogs && config.development.logLevel === 'debug') {
+      console.debug(`[DEBUG] ${msg}`, ...args);
     }
   },
-  info: (...args: any[]) => {
-    if (config.development.enableLogs) {
-      console.info('[INFO]', ...args);
+  info: (msg: string, ...args: any[]) => {
+    if (config.development.enableLogs && ['debug', 'info'].includes(config.development.logLevel)) {
+      console.log(`[INFO] ${msg}`, ...args);
     }
   },
-  warn: (...args: any[]) => {
-    console.warn('[WARN]', ...args);
+  warn: (msg: string, ...args: any[]) => {
+    if (config.development.enableLogs && ['debug', 'info', 'warn'].includes(config.development.logLevel)) {
+      console.warn(`[WARN] ${msg}`, ...args);
+    }
   },
-  error: (...args: any[]) => {
-    console.error('[ERROR]', ...args);
+  error: (msg: string, ...args: any[]) => {
+    if (config.development.enableLogs) {
+      console.error(`[ERROR] ${msg}`, ...args);
+    }
   },
 };
 
-// パフォーマンス監視ユーティリティ
+// Enhanced performance monitoring utility
 export const performance = {
   mark: (name: string) => {
     if (config.development.enablePerformanceMonitoring && window.performance) {
@@ -118,9 +184,87 @@ export const performance = {
   },
   measure: (name: string, startMark: string, endMark: string) => {
     if (config.development.enablePerformanceMonitoring && window.performance) {
-      window.performance.measure(name, startMark, endMark);
-      const measure = window.performance.getEntriesByName(name)[0];
-      logger.debug(`Performance [${name}]: ${measure.duration.toFixed(2)}ms`);
+      try {
+        window.performance.measure(name, startMark, endMark);
+        const measure = window.performance.getEntriesByName(name)[0];
+        logger.debug(`Performance [${name}]: ${measure.duration.toFixed(2)}ms`);
+      } catch (error) {
+        logger.warn(`Performance measurement failed: ${name}`, error);
+      }
     }
   },
+  now: () => window.performance.now(),
 };
+
+// Device detection utilities
+export const device = {
+  isIOS: () => /iPad|iPhone|iPod/.test(navigator.userAgent),
+  isSafari: () => /^((?!chrome|android).)*safari/i.test(navigator.userAgent),
+  isIOSSafari: () => device.isIOS() && device.isSafari(),
+  isWebGPUSupported: () => !!navigator.gpu,
+  getPixelRatio: () => window.devicePixelRatio || 1,
+  
+  getDeviceInfo: () => ({
+    userAgent: navigator.userAgent,
+    isIOS: device.isIOS(),
+    isSafari: device.isSafari(),
+    webGPU: device.isWebGPUSupported(),
+    pixelRatio: device.getPixelRatio(),
+    screenWidth: window.screen.width,
+    screenHeight: window.screen.height,
+    viewportWidth: window.innerWidth,
+    viewportHeight: window.innerHeight
+  })
+};
+
+// Application state management
+export class AppState {
+  private state: Map<string, any> = new Map();
+  private listeners: Map<string, Function[]> = new Map();
+
+  set<T>(key: string, value: T): void {
+    const oldValue = this.state.get(key);
+    this.state.set(key, value);
+    
+    if (oldValue !== value) {
+      this.notify(key, value, oldValue);
+    }
+  }
+
+  get<T>(key: string): T | undefined {
+    return this.state.get(key);
+  }
+
+  subscribe(key: string, callback: Function): () => void {
+    if (!this.listeners.has(key)) {
+      this.listeners.set(key, []);
+    }
+    this.listeners.get(key)!.push(callback);
+
+    // Return unsubscribe function
+    return () => {
+      const callbacks = this.listeners.get(key);
+      if (callbacks) {
+        const index = callbacks.indexOf(callback);
+        if (index > -1) {
+          callbacks.splice(index, 1);
+        }
+      }
+    };
+  }
+
+  private notify(key: string, newValue: any, oldValue: any): void {
+    const callbacks = this.listeners.get(key);
+    if (callbacks) {
+      callbacks.forEach(callback => {
+        try {
+          callback(newValue, oldValue);
+        } catch (error) {
+          logger.error(`State change callback error for key "${key}":`, error);
+        }
+      });
+    }
+  }
+}
+
+export const appState = new AppState();

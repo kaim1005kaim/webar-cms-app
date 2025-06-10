@@ -123,23 +123,32 @@ app.post('/api/projects', asyncHandler(async (req, res) => {
   
   const data = await dataManager.readProjects();
   const newProject = {
-    id: `project${Date.now()}`,
+    id: req.body.id || `project_${Date.now()}`,
     name: req.body.name,
     creator: req.body.creator || { userId: 'anonymous', name: 'Anonymous' },
-    marker: req.body.marker || {},
-    character: req.body.character || {},
+    marker: {
+      imageUrl: req.body.marker?.imageUrl || './placeholder.svg',
+      nftDescriptor: req.body.marker?.nftDescriptor || `./markers/${req.body.name?.replace(/\s+/g, '_').toLowerCase()}`,
+      printTemplate: req.body.marker?.printTemplate || 'A4'
+    },
+    character: {
+      modelUrl: req.body.character?.modelUrl || 'keyholder-default',
+      scale: req.body.character?.scale || 1.0,
+      position: req.body.character?.position || [0, 0.5, 0],
+      animations: req.body.character?.animations || ['rotation']
+    },
     metadata: {
       description: req.body.metadata?.description || '',
       tags: req.body.metadata?.tags || [],
-      isPublic: req.body.metadata?.isPublic || false
+      isPublic: req.body.metadata?.isPublic !== false
     },
-    created_at: new Date().toISOString()
+    created_at: req.body.created_at || new Date().toISOString()
   };
   
   data.projects.push(newProject);
   await dataManager.writeProjects(data);
   
-  res.status(201).json(APIResponse.success(newProject, 'Project created successfully'));
+  res.status(201).json(APIResponse.success(newProject, 'Enhanced project created successfully'));
 }));
 
 app.put('/api/projects/:id', asyncHandler(async (req, res) => {

@@ -1,9 +1,10 @@
 export class WebGPURenderer {
-  private device: GPUDevice | null = null;
-  private context: GPUCanvasContext | null = null;
-  private format: GPUTextureFormat = 'bgra8unorm';
+  protected device: GPUDevice | null = null;
+  protected context: GPUCanvasContext | null = null;
+  protected format: GPUTextureFormat = 'bgra8unorm';
   private canvas: HTMLCanvasElement;
   private isSupported: boolean = false;
+  private depthTexture: GPUTexture | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -36,6 +37,9 @@ export class WebGPURenderer {
         format: this.format,
         alphaMode: 'premultiplied',
       });
+      
+      // 深度テクスチャを作成
+      this.createDepthTexture();
 
       this.isSupported = true;
       return true;
@@ -73,6 +77,16 @@ export class WebGPURenderer {
     });
   }
 
+  private createDepthTexture(): void {
+    if (!this.device) return;
+    
+    this.depthTexture = this.device.createTexture({
+      size: [this.canvas.width, this.canvas.height],
+      format: 'depth24plus',
+      usage: GPUTextureUsage.RENDER_ATTACHMENT,
+    });
+  }
+  
   beginRenderPass(): GPURenderPassEncoder | null {
     if (!this.device || !this.context) return null;
 
@@ -83,11 +97,17 @@ export class WebGPURenderer {
       colorAttachments: [
         {
           view: textureView,
-          clearValue: { r: 0.1, g: 0.1, b: 0.1, a: 1.0 },
+          clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 0.0 }, // 透明に設定
           loadOp: 'clear',
           storeOp: 'store',
         },
       ],
+      depthStencilAttachment: {
+        view: this.depthTexture!.createView(),
+        depthClearValue: 1.0,
+        depthLoadOp: 'clear',
+        depthStoreOp: 'store',
+      },
     };
 
     return commandEncoder.beginRenderPass(renderPassDescriptor);
@@ -99,6 +119,19 @@ export class WebGPURenderer {
 
   get gpuDevice(): GPUDevice | null {
     return this.device;
+  }
+  
+  onResize(width: number, height: number): void {
+    if (!this.context || !this.device) return;
+    
+    this.canvas.width = width;
+    this.canvas.height = height;
+    
+    // 深度テクスチャを再作成
+    if (this.depthTexture) {
+      this.depthTexture.destroy();
+    }
+    this.createDepthTexture();
   }
 }
 

@@ -73,13 +73,55 @@ export interface WebGPUCapabilities {
   supported: boolean;
   device?: GPUDevice;
   format?: GPUTextureFormat;
+  adapter?: GPUAdapter;
+  features?: string[];
+  limits?: Record<string, number>;
 }
 
 // AR関連の型定義
 export interface ARTrackingState {
   isTracking: boolean;
-  confidence: number;
-  matrix: Float32Array;
+  confidence?: number;
+  matrix?: Float32Array;
+}
+
+// キーホルダー3Dモデル定義
+export interface KeyholderModel {
+  id: string;
+  name: string;
+  geometry: {
+    vertices: Float32Array;
+    indices: Uint16Array;
+    normals: Float32Array;
+    uvs: Float32Array;
+  };
+  material: {
+    baseColor: [number, number, number];
+    metallic: number;
+    roughness: number;
+    emissive?: [number, number, number];
+  };
+  animation?: {
+    type: 'rotation' | 'scale' | 'position';
+    duration: number;
+    loop: boolean;
+  };
+}
+
+// レンダリングコンテキスト
+export interface RenderingContext {
+  webgl?: THREE.WebGLRenderer;
+  webgpu?: GPUDevice;
+  canvas: HTMLCanvasElement;
+  camera: THREE.PerspectiveCamera;
+}
+
+// パフォーマンス指標
+export interface PerformanceMetrics {
+  frameRate: number;
+  renderTime: number;
+  gpuMemoryUsage?: number;
+  triangleCount: number;
 }
 
 export interface ARConfiguration {

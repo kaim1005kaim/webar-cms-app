@@ -1,6 +1,18 @@
 import { WebGPURenderer } from './webgpu-renderer.js';
-import type { ARTrackingState, WebGPUCapabilities } from './types/index.js';
-import { config, logger, performance } from './config/index.js';
+import type { ARTrackingState } from './types/index.js';
+
+// 簡易ログガーとパフォーマンスユーティリティ
+const logger = {
+  info: (msg: string, ...args: any[]) => console.log(`[INFO] ${msg}`, ...args),
+  warn: (msg: string, ...args: any[]) => console.warn(`[WARN] ${msg}`, ...args),
+  error: (msg: string, ...args: any[]) => console.error(`[ERROR] ${msg}`, ...args),
+  debug: (msg: string, ...args: any[]) => console.debug(`[DEBUG] ${msg}`, ...args),
+};
+
+const performance = {
+  mark: (name: string) => window.performance.mark(name),
+  measure: (name: string, start: string, end: string) => window.performance.measure(name, start, end),
+};
 
 export class ARWebGPURenderer extends WebGPURenderer {
     private arMatrix: Float32Array = new Float32Array(16);
@@ -141,19 +153,74 @@ export class ARWebGPURenderer extends WebGPURenderer {
         // パイプラインとユニフォームバッファをバインド
         renderPass.setPipeline(this.pipeline);
         
-        // TODO: 実際のモデルデータからジオメトリを生成
-        // 現在は簡易実装（テスト用キューブ）
-        this.renderTestCube(renderPass);
+        // キーホルダーモデルをレンダリング
+        this.renderKeyholderModel(renderPass);
     }
     
-    private renderTestCube(renderPass: GPURenderPassEncoder): void {
-        // テスト用の簡易キューブレンダリング
-        // 実際のプロダクションでは、GLTFローダーと統合する必要がある
-        logger.debug('Rendering test cube with AR transform');
+    private renderKeyholderModel(renderPass: GPURenderPassEncoder): void {
+        if (!this.device) return;
         
-        // 実際のレンダリングコマンドはここに実装
-        // renderPass.draw(36); // キューブの頂点数
+        // キーホルダーモデルのジオメトリを作成
+        const keyholderGeometry = this.createKeyholderGeometry();
+        if (!keyholderGeometry) return;
+        
+        // バインドグループを設定
+        const bindGroup = this.device.createBindGroup({
+            layout: this.pipeline!.getBindGroupLayout(0),
+            entries: [{
+                binding: 0,
+                resource: { buffer: this.uniformBuffer! }
+            }]
+        });
+        
+        renderPass.setBindGroup(0, bindGroup);
+        renderPass.setVertexBuffer(0, keyholderGeometry.vertexBuffer);
+        renderPass.setIndexBuffer(keyholderGeometry.indexBuffer, 'uint16');
+        renderPass.drawIndexed(keyholderGeometry.indexCount);
     }
+    
+    private createKeyholderGeometry(): { vertexBuffer: GPUBuffer, indexBuffer: GPUBuffer, indexCount: number } | null {
+        if (!this.device) return null;
+        
+        // キーホルダーモデルの頂点データ（簡易版）
+        const vertices = new Float32Array([
+            // メインボディ (ボックス)
+            -0.25, -0.35, -0.1,  0, 0, -1,  0, 0, // 前面
+             0.25, -0.35, -0.1,  0, 0, -1,  1, 0,
+             0.25,  0.35, -0.1,  0, 0, -1,  1, 1,
+            -0.25,  0.35, -0.1,  0, 0, -1,  0, 1,
+            
+            -0.25, -0.35,  0.1,  0, 0,  1,  0, 0, // 背面
+             0.25, -0.35,  0.1,  0, 0,  1,  1, 0,
+             0.25,  0.35,  0.1,  0, 0,  1,  1, 1,
+            -0.25,  0.35,  0.1,  0, 0,  1,  0, 1,
+            
+            // リング部分 (簡易化)
+             0,  0.5, 0,  0, 1, 0,  0.5, 0.5,
+        ]);
+        
+        const indices = new Uint16Array([
+            0, 1, 2,  0, 2, 3, // 前面
+            4, 6, 5,  4, 7, 6, // 背面
+            0, 4, 5,  0, 5, 1, // 下面
+            2, 6, 7,  2, 7, 3, // 上面
+            0, 3, 7,  0, 7, 4, // 左面
+            1, 5, 6,  1, 6, 2, // 右面
+        ]);
+        
+        const vertexBuffer = this.createBuffer(vertices, GPUBufferUsage.VERTEX);
+        const indexBuffer = this.createBuffer(indices, GPUBufferUsage.INDEX);
+        
+        if (!vertexBuffer || !indexBuffer) return null;
+        
+        return {
+            vertexBuffer,
+            indexBuffer,
+            indexCount: indices.length
+        };
+    }
+    
+    // メソッドを削除（createKeyholderGeometryに統合）
     
     createAdvancedMaterial(): GPURenderPipeline | null {
         if (!this.device) return null;
@@ -196,18 +263,27 @@ export class ARWebGPURenderer extends WebGPURenderer {
                 
                 @fragment
                 fn fragmentMain(input: VertexOutput) -> @location(0) vec4<f32> {
-                    // PBRライティング計算
+                    // 高品質キーホルダーレンダリング
                     let lightDir = normalize(uniforms.lightPosition - input.worldPosition);
                     let viewDir = normalize(uniforms.cameraPosition - input.worldPosition);
                     let normal = normalize(input.normal);
                     
-                    // 簡易PBR
+                    // メタリックフィニッシュ
                     let NdotL = max(dot(normal, lightDir), 0.0);
-                    let baseColor = vec3<f32>(0.8, 0.2, 0.2);
-                    let ambient = vec3<f32>(0.1, 0.1, 0.1);
-                    let diffuse = baseColor * NdotL;
+                    let baseColor = vec3<f32>(0.9, 0.1, 0.3); // 鰮やかな赤
+                    let metallic = 0.8;
+                    let roughness = 0.2;
                     
-                    return vec4<f32>(ambient + diffuse, 1.0);
+                    // 簡易スペキュラーリフレクション
+                    let halfVector = normalize(lightDir + viewDir);
+                    let NdotH = max(dot(normal, halfVector), 0.0);
+                    let specular = pow(NdotH, (1.0 - roughness) * 128.0) * metallic;
+                    
+                    let ambient = vec3<f32>(0.1, 0.1, 0.15);
+                    let diffuse = baseColor * NdotL * (1.0 - metallic);
+                    let specularHighlight = vec3<f32>(1.0, 1.0, 1.0) * specular;
+                    
+                    return vec4<f32>(ambient + diffuse + specularHighlight, 1.0);
                 }
             `
         });

@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { ARKeyholderApp } from './ar-app.js';
+import { WebGPURenderer } from './webgpu-renderer.js';
 
 interface Model {
   id: string;
@@ -11,15 +13,23 @@ interface Model {
   created_at: string;
 }
 
-class WebARApp {
+interface ARMatrix {
+  elements: number[];
+}
+
+class EnhancedWebARApp {
   private scene: THREE.Scene;
   private camera: THREE.PerspectiveCamera;
-  private renderer: THREE.WebGLRenderer;
-  private controls: OrbitControls;
+  private renderer: THREE.WebGLRenderer | null = null;
+  private controls: OrbitControls | null = null;
   private loader: GLTFLoader;
   private currentModel: THREE.Object3D | null = null;
   private raycaster: THREE.Raycaster;
   private mouse: THREE.Vector2;
+  private arKeyholderApp: ARKeyholderApp | null = null;
+  private webgpuRenderer: WebGPURenderer | null = null;
+  private isARMode: boolean = false;
+  private markerMatrix: Float32Array = new Float32Array(16);
 
   constructor() {
     this.scene = new THREE.Scene();
@@ -30,20 +40,6 @@ class WebARApp {
       1000
     );
     
-    const canvas = document.getElementById('canvas') as HTMLCanvasElement;
-    this.renderer = new THREE.WebGLRenderer({ 
-      canvas, 
-      antialias: true,
-      alpha: true 
-    });
-    
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.setPixelRatio(window.devicePixelRatio);
-    this.renderer.shadowMap.enabled = true;
-    
-    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-    this.controls.enableDamping = true;
-    
     this.loader = new GLTFLoader();
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
@@ -51,11 +47,48 @@ class WebARApp {
     this.init();
   }
 
-  private init(): void {
+  private async init(): Promise<void> {
+    await this.initializeRenderers();
     this.setupScene();
     this.setupEventListeners();
     this.loadModelsFromAPI();
     this.animate();
+  }
+  
+  private async initializeRenderers(): Promise<void> {
+    // WebGPU初期化を試行
+    const webgpuCanvas = document.getElementById('webgpu-canvas') as HTMLCanvasElement;
+    if (webgpuCanvas && navigator.gpu) {
+      try {
+        this.webgpuRenderer = new WebGPURenderer(webgpuCanvas);
+        const webgpuSupported = await this.webgpuRenderer.initialize();
+        
+        if (webgpuSupported) {
+          console.log('WebGPU レンダラーを初期化しました');
+          this.arKeyholderApp = new ARKeyholderApp();
+          return;
+        }
+      } catch (error) {
+        console.warn('WebGPU初期化に失敗、WebGLにフォールバック:', error);
+      }
+    }
+    
+    // WebGLフォールバック
+    const canvas = document.getElementById('canvas') as HTMLCanvasElement;
+    if (canvas) {
+      this.renderer = new THREE.WebGLRenderer({ 
+        canvas, 
+        antialias: true,
+        alpha: true 
+      });
+      
+      this.renderer.setSize(window.innerWidth, window.innerHeight);
+      this.renderer.setPixelRatio(window.devicePixelRatio);
+      this.renderer.shadowMap.enabled = true;
+      
+      this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+      this.controls.enableDamping = true;
+    }
   }
 
   private setupScene(): void {
@@ -208,11 +241,46 @@ class WebARApp {
   private animate(): void {
     requestAnimationFrame(() => this.animate());
     
-    this.controls.update();
-    this.renderer.render(this.scene, this.camera);
+    if (this.controls) {
+      this.controls.update();
+    }
+    
+    if (this.renderer && !this.isARMode) {
+      this.renderer.render(this.scene, this.camera);
+    }
+  }
+  
+  // AR関連のメソッド
+  onMarkerFound(matrix: number[]): void {
+    this.isARMode = true;
+    this.markerMatrix.set(matrix);
+    
+    if (this.arKeyholderApp) {
+      // WebGPU ARレンダリング開始
+      console.log('WebGPU ARレンダリング開始');
+    }
+  }
+  
+  onMarkerLost(): void {
+    this.isARMode = false;
+    console.log('ARモード終了');
+  }
+  
+  async loadARModel(modelUrl: string): Promise<void> {
+    if (this.arKeyholderApp) {
+      await this.arKeyholderApp.loadCharacterModel(modelUrl);
+    }
   }
 }
 
+// グローバルアクセス用
+let webARAppInstance: EnhancedWebARApp | null = null;
+
 window.addEventListener('DOMContentLoaded', () => {
-  new WebARApp();
+  webARAppInstance = new EnhancedWebARApp();
+  
+  // HTML側からアクセス可能にする
+  (window as any).webARApp = webARAppInstance;
 });
+
+export { EnhancedWebARApp };
