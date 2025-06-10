@@ -6,3 +6,12 @@ dist/
 .env.local
 .vscode/
 .idea/
+
+# macOS隠しファイル
+._*
+**/.DS_Store
+**/._.DS_Store
+**/__MACOSX
+
+# Netlify関連
+.netlify/
