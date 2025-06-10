@@ -785,16 +785,7 @@
                 ensureObjectVisibility();
                 
                 // 全ての子要素も強制的に表示
-                const keyholderObject = document.getElementById('keyholder-object');
-                if (keyholderObject) {
-                    keyholderObject.setAttribute('visible', 'true');
-                    const allElements = keyholderObject.querySelectorAll('*');
-                    allElements.forEach(el => {
-                        el.setAttribute('visible', 'true');
-                        console.log('Element made visible:', el.tagName, el.id || el.className);
-                    });
-                    console.log('All objects forced visible on marker detection');
-                }
+                forceObjectVisibility();
                 
                 // WebGPUレンダリングを通知
                 if (useWebGPU && webARApp) {
@@ -900,33 +891,33 @@
         
         // プロジェクト設定適用
         function applyProjectSettings(project) {
-            // マーカー設定
-            if (project.marker?.imageUrl && project.marker.imageUrl !== './placeholder.svg') {
-                console.log('Applying custom marker');
-                // カスタムマーカーの場合はpattern属性を使用
-                const marker = document.getElementById('hiro-marker');
-                marker.removeAttribute('preset');
-                marker.setAttribute('type', 'pattern');
-                marker.setAttribute('url', project.marker.imageUrl);
-            }
+            console.log('Applying project settings:', project);
+            
+            // 現在はHiroマーカーのみ対応（カスタムマーカーは今後実装予定）
+            console.log('カスタムマーカー機能は開発中です。現在はHiroマーカーを使用してください。');
             
             // 3Dモデル設定
             const keyholderObject = document.getElementById('keyholder-object');
-            if (project.character?.modelUrl && project.character.modelUrl !== '') {
+            if (project.character?.modelUrl && project.character.modelUrl !== '' && project.character.modelUrl !== 'keyholder-default') {
                 console.log('Loading custom 3D model:', project.character.modelUrl);
                 loadCustomModel(project.character.modelUrl, project.character.scale || 0.5);
+            } else {
+                console.log('Using default keyholder model');
+                // デフォルトモデルが消えないようにする
             }
             
             // スケール適用
             if (project.character?.scale) {
                 const scale = project.character.scale;
                 keyholderObject.setAttribute('scale', `${scale} ${scale} ${scale}`);
+                console.log('Applied scale:', scale);
             }
             
             // 位置設定
             if (project.character?.position) {
                 const pos = project.character.position;
                 keyholderObject.setAttribute('position', `${pos[0]} ${pos[1]} ${pos[2]}`);
+                console.log('Applied position:', pos);
             }
         }
         
@@ -940,13 +931,28 @@
                     <a-gltf-model 
                         src="${modelUrl}" 
                         scale="${scale} ${scale} ${scale}"
+                        position="0 0 0"
                         animation="property: rotation; to: 0 360 0; loop: true; dur: 10000"
                         visible="true">
                     </a-gltf-model>
                 `;
+                console.log('GLTF model loaded:', modelUrl);
             } else {
-                // デフォルトキーホルダーの場合
+                // デフォルトキーホルダーの場合は元の内容を保持
                 console.log('Using default keyholder model');
+            }
+        }
+        
+        // オブジェクト表示強制化関数
+        function forceObjectVisibility() {
+            const keyholderObject = document.getElementById('keyholder-object');
+            if (keyholderObject) {
+                keyholderObject.setAttribute('visible', 'true');
+                const allElements = keyholderObject.querySelectorAll('*');
+                allElements.forEach(el => {
+                    el.setAttribute('visible', 'true');
+                });
+                console.log('Forced all objects visible');
             }
         }
         
@@ -958,6 +964,11 @@
             
             // プロジェクト設定読み込み
             const currentProject = loadProjectSettings();
+            
+            // 少し待ってからオブジェクト表示を強制
+            setTimeout(() => {
+                forceObjectVisibility();
+            }, 2000);
             
             // iOS Safariでのカメラアクセス確認
             const cameraPermitted = await requestCameraPermission();
