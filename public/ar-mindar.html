@@ -78,6 +78,30 @@
             text-align: center;
             z-index: 10000;
         }
+        
+        #debug-panel {
+            position: fixed;
+            bottom: 100px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            z-index: 1001;
+            max-width: 200px;
+        }
+        
+        .debug-btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            margin: 2px;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -102,13 +126,24 @@
         1. カスタムマーカー、または<a href="https://raw.githubusercontent.com/hiukim/mind-ar-js/master/examples/image-tracking/assets/card-example/card.png" 
               target="_blank" class="marker-link">デフォルトカード</a>を用意<br>
         2. マーカーをカメラに向けてください<br>
-        3. AIが高精度でマーカーを認識し、3Dキャラクターが表示されます！
+        3. AIが高精度でマーカーを認識し、3Dキャラクターが表示されます！<br>
+        <small style="color: #fbbf24;">※ 認識しない場合はデバッグパネルで位置確認できます</small>
+    </div>
+    
+    <!-- デバッグパネル -->
+    <div id="debug-panel" style="display: none;">
+        <div style="margin-bottom: 10px;"><strong>🔧 デバッグ</strong></div>
+        <button class="debug-btn" onclick="toggleReferences()">基準点表示</button>
+        <button class="debug-btn" onclick="forceShowObject()">強制表示</button>
+        <button class="debug-btn" onclick="resetMarker()">マーカーリセット</button>
+        <button class="debug-btn" onclick="testPosition()">位置テスト</button>
+        <div id="debug-info" style="margin-top: 10px; font-size: 10px; color: #ccc;"></div>
     </div>
 
     <!-- MindAR Scene -->
     <a-scene
         id="ar-scene"
-        mindar-image="imageTargetSrc: #defaultMarker; maxTrack: 1; filterMinCF: 0.0001; filterBeta: 0.01"
+        mindar-image="imageTargetSrc: #defaultMarker; maxTrack: 1; filterMinCF: 0.001; filterBeta: 0.1; missTolerance: 0; warmupTolerance: 5"
         color-space="sRGB"
         renderer="colorManagement: true; physicallyCorrectLights: true; antialias: true"
         vr-mode-ui="enabled: false"
@@ -143,6 +178,24 @@
                     material="emissive: #00ff00; emissiveIntensity: 3.0; transparent: true; opacity: 0.9;"
                     visible="false">
                 </a-sphere>
+                
+                <!-- 位置確認用の軸表示 -->
+                <a-box id="x-axis" position="0.1 0 0" width="0.2" height="0.01" depth="0.01" color="#ff0000" visible="false"></a-box>
+                <a-box id="y-axis" position="0 0.1 0" width="0.01" height="0.2" depth="0.01" color="#00ff00" visible="false"></a-box>
+                <a-box id="z-axis" position="0 0 0.1" width="0.01" height="0.01" depth="0.2" color="#0000ff" visible="false"></a-box>
+                
+                <!-- テスト用キューブ -->
+                <a-box
+                    id="test-cube"
+                    position="0 0.1 0"
+                    width="0.1"
+                    height="0.1"
+                    depth="0.1"
+                    color="#ff6b6b"
+                    material="emissive: #ff6b6b; emissiveIntensity: 0.3;"
+                    visible="false"
+                    animation="property: rotation; to: 0 360 0; loop: true; dur: 3000">
+                </a-box>
                 
                 <!-- キャラクターモデルがここに動的に追加される -->
                 
@@ -181,16 +234,28 @@
 
         // デバッグ用グローバル関数
         window.ARKeyholder = {
-            version: '4.0.0-mindar',
+            version: '4.0.0-mindar-debug',
             showReferences: () => {
                 const ref = document.querySelector('#center-reference');
+                const xAxis = document.querySelector('#x-axis');
+                const yAxis = document.querySelector('#y-axis');
+                const zAxis = document.querySelector('#z-axis');
                 ref.setAttribute('visible', true);
-                console.log('Reference sphere visible - Green=center(0,0,0)');
+                xAxis.setAttribute('visible', true);
+                yAxis.setAttribute('visible', true);
+                zAxis.setAttribute('visible', true);
+                console.log('Reference elements visible - Green=center, Red=X, Green=Y, Blue=Z');
             },
             hideReferences: () => {
                 const ref = document.querySelector('#center-reference');
+                const xAxis = document.querySelector('#x-axis');
+                const yAxis = document.querySelector('#y-axis');
+                const zAxis = document.querySelector('#z-axis');
                 ref.setAttribute('visible', false);
-                console.log('Reference sphere hidden');
+                xAxis.setAttribute('visible', false);
+                yAxis.setAttribute('visible', false);
+                zAxis.setAttribute('visible', false);
+                console.log('Reference elements hidden');
             },
             adjustCharacter: (x, y, z) => {
                 const container = document.querySelector('#character-container');
@@ -220,6 +285,70 @@
                 console.log('Green sphere = marker center');
             }
         };
+        
+        // デバッグパネル用関数
+        let referencesVisible = false;
+        
+        function toggleReferences() {
+            referencesVisible = !referencesVisible;
+            if (referencesVisible) {
+                ARKeyholder.showReferences();
+                document.querySelector('#test-cube').setAttribute('visible', true);
+            } else {
+                ARKeyholder.hideReferences();
+                document.querySelector('#test-cube').setAttribute('visible', false);
+            }
+        }
+        
+        function forceShowObject() {
+            const anchor = document.querySelector('#marker-anchor');
+            anchor.setAttribute('visible', true);
+            toggleReferences();
+            updateDebugInfo('強制表示: オブジェクトを表示しました');
+            console.log('Force showing objects for position debugging');
+        }
+        
+        function resetMarker() {
+            const anchor = document.querySelector('#marker-anchor');
+            anchor.setAttribute('visible', false);
+            referencesVisible = false;
+            ARKeyholder.hideReferences();
+            document.querySelector('#test-cube').setAttribute('visible', false);
+            updateDebugInfo('リセット: マーカー検出待機中');
+            console.log('Reset marker detection');
+        }
+        
+        function testPosition() {
+            const testCube = document.querySelector('#test-cube');
+            const positions = [
+                '0 0.1 0',    // 中心上
+                '0.2 0.1 0',  // 右
+                '-0.2 0.1 0', // 左  
+                '0 0.1 0.2',  // 手前
+                '0 0.1 -0.2'  // 奥
+            ];
+            
+            let posIndex = 0;
+            const interval = setInterval(() => {
+                testCube.setAttribute('position', positions[posIndex]);
+                testCube.setAttribute('visible', true);
+                updateDebugInfo(`テスト位置: ${positions[posIndex]}`);
+                posIndex++;
+                
+                if (posIndex >= positions.length) {
+                    clearInterval(interval);
+                    testCube.setAttribute('position', '0 0.1 0'); // 中心に戻す
+                    updateDebugInfo('テスト完了: 中心に戻しました');
+                }
+            }, 1500);
+        }
+        
+        function updateDebugInfo(message) {
+            const debugInfo = document.getElementById('debug-info');
+            if (debugInfo) {
+                debugInfo.textContent = message;
+            }
+        }
         
         // プロジェクトデータの読み込み
         async function loadProjectData() {
@@ -492,8 +621,12 @@
                 console.log('🎯 MindAR marker detected - Character display!');
                 updateStatus(markerStatus, '検出中 - キャラクター表示!', 'ok');
                 updateStatus(visibilityStatus, 'キャラクター表示中!', 'ok');
+                updateDebugInfo('マーカー検出: オブジェクト表示中');
                 
                 markerAnchor.setAttribute('visible', true);
+                
+                // デバッグパネルを表示
+                document.getElementById('debug-panel').style.display = 'block';
                 
                 // キャラクターモデルに出現アニメーション
                 const characterModels = markerAnchor.querySelectorAll('a-gltf-model');
