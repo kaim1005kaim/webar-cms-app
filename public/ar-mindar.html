@@ -228,67 +228,76 @@
             
             if (projectId) {
                 try {
-                    console.log('Loading project from Supabase:', projectId);
+                    console.log('Loading project:', projectId);
                     
-                    // Supabaseからプロジェクトデータを取得
-                    const response = await fetch(`${SUPABASE_URL}/rest/v1/projects?id=eq.${projectId}&select=*`, {
-                        method: 'GET',
-                        headers: SUPABASE_HEADERS
-                    });
-                    
+                    // まずローカルストレージから読み込みを試行
                     let projectData;
+                    const projects = JSON.parse(localStorage.getItem('ar-projects') || '[]');
+                    projectData = projects.find(p => p.id === projectId);
                     
-                    if (response.ok) {
-                        const supabaseProjects = await response.json();
-                        console.log('Raw Supabase project data:', supabaseProjects);
-                        
-                        if (supabaseProjects && supabaseProjects.length > 0) {
-                            const supabaseProject = supabaseProjects[0];
-                            
-                            // Supabaseデータを既存形式に変換
-                            projectData = {
-                                id: supabaseProject.id,
-                                name: supabaseProject.title,
-                                metadata: { 
-                                    description: supabaseProject.description || '' 
-                                },
-                                character: {
-                                    modelUrl: supabaseProject.model_url || 'default',
-                                    scale: supabaseProject.scale || 1,
-                                    position: [
-                                        supabaseProject.position_x || 0,
-                                        supabaseProject.position_y || 0,
-                                        supabaseProject.position_z || 0
-                                    ],
-                                    rotation: [
-                                        supabaseProject.rotation_x || 0,
-                                        supabaseProject.rotation_y || 0,
-                                        supabaseProject.rotation_z || 0
-                                    ]
-                                },
-                                marker: { 
-                                    imageUrl: supabaseProject.image_url || '',
-                                    type: 'custom' // カスタムマーカー
-                                },
-                                created_at: supabaseProject.created_at
-                            };
-                            
-                            console.log('Converted project data:', projectData);
-                        }
+                    if (projectData) {
+                        console.log('Project found in localStorage:', projectData);
                     } else {
-                        console.warn('Supabase fetch failed, trying localStorage');
-                    }
-                    
-                    // フォールバック: ローカルストレージから取得
-                    if (!projectData) {
-                        const projects = JSON.parse(localStorage.getItem('ar-projects') || '[]');
-                        projectData = projects.find(p => p.id === projectId);
-                        console.log('Project loaded from localStorage:', projectData);
+                        // Supabaseからプロジェクトデータを取得
+                        try {
+                            const response = await fetch(`${SUPABASE_URL}/rest/v1/projects?id=eq.${projectId}&select=*`, {
+                                method: 'GET',
+                                headers: SUPABASE_HEADERS
+                            });
+                            
+                            if (response.ok) {
+                                const supabaseProjects = await response.json();
+                                console.log('Raw Supabase project data:', supabaseProjects);
+                                
+                                if (supabaseProjects && supabaseProjects.length > 0) {
+                                    const supabaseProject = supabaseProjects[0];
+                                    
+                                    // Supabaseデータを既存形式に変換
+                                    projectData = {
+                                        id: supabaseProject.id,
+                                        name: supabaseProject.title,
+                                        metadata: { 
+                                            description: supabaseProject.description || '' 
+                                        },
+                                        character: {
+                                            modelUrl: supabaseProject.model_url || 'default',
+                                            scale: supabaseProject.scale || 1,
+                                            position: [
+                                                supabaseProject.position_x || 0,
+                                                supabaseProject.position_y || 0,
+                                                supabaseProject.position_z || 0
+                                            ],
+                                            rotation: [
+                                                supabaseProject.rotation_x || 0,
+                                                supabaseProject.rotation_y || 0,
+                                                supabaseProject.rotation_z || 0
+                                            ]
+                                        },
+                                        marker: { 
+                                            imageUrl: supabaseProject.image_url || '',
+                                            type: 'custom' // カスタムマーカー
+                                        },
+                                        created_at: supabaseProject.created_at
+                                    };
+                                    
+                                    console.log('Converted project data from Supabase:', projectData);
+                                }
+                            } else {
+                                console.warn('Supabase fetch failed:', response.status, response.statusText);
+                            }
+                        } catch (supabaseError) {
+                            console.warn('Supabase connection error:', supabaseError);
+                        }
                     }
                     
                     if (projectData) {
                         await applyProjectSettings(projectData);
                         updateStatus(document.getElementById('ar-status'), `プロジェクト: ${projectData.name}`, 'ok');
+                        
+                        // ローディングを非表示
+                        loading.style.display = 'none';
+                        statusOverlay.style.display = 'block';
+                        instructions.style.display = 'block';
                     } else {
                         console.warn('Project not found:', projectId);
                         updateStatus(document.getElementById('ar-status'), 'プロジェクトが見つかりません', 'error');
@@ -309,8 +318,35 @@
         // デフォルトマーカーを使用
         async function useDefaultMarker() {
             const defaultMarkerUrl = 'https://raw.githubusercontent.com/hiukim/mind-ar-js/master/examples/image-tracking/assets/card-example/card.png';
-            document.querySelector('#defaultMarker').src = defaultMarkerUrl;
-            updateStatus(document.getElementById('ar-status'), 'デフォルトマーカー使用', 'warning');
+            
+            try {
+                // マーカー画像をプリロードしてエラーを防ぐ
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                await new Promise((resolve, reject) => {
+                    img.onload = resolve;
+                    img.onerror = reject;
+                    img.src = defaultMarkerUrl;
+                });
+                
+                document.querySelector('#defaultMarker').src = defaultMarkerUrl;
+                updateStatus(document.getElementById('ar-status'), 'デフォルトマーカー使用', 'warning');
+                console.log('Default marker loaded successfully');
+                
+                // ローディングを非表示
+                loading.style.display = 'none';
+                statusOverlay.style.display = 'block';
+                instructions.style.display = 'block';
+                
+            } catch (error) {
+                console.error('Default marker loading failed:', error);
+                updateStatus(document.getElementById('ar-status'), 'マーカー読み込みエラー', 'error');
+                
+                // ローディングを非表示（エラーでも）
+                loading.style.display = 'none';
+                statusOverlay.style.display = 'block';
+                instructions.style.display = 'block';
+            }
         }
         
         // プロジェクト設定の適用
@@ -321,10 +357,28 @@
                 // カスタムマーカーの設定
                 if (projectData.marker && projectData.marker.imageUrl && projectData.marker.imageUrl !== '') {
                     console.log('Setting custom marker:', projectData.marker.imageUrl);
-                    document.querySelector('#defaultMarker').src = projectData.marker.imageUrl;
+                    
+                    try {
+                        // カスタムマーカーをプリロード
+                        const img = new Image();
+                        img.crossOrigin = 'anonymous';
+                        await new Promise((resolve, reject) => {
+                            img.onload = resolve;
+                            img.onerror = reject;
+                            img.src = projectData.marker.imageUrl;
+                        });
+                        
+                        document.querySelector('#defaultMarker').src = projectData.marker.imageUrl;
+                        console.log('Custom marker loaded successfully');
+                    } catch (markerError) {
+                        console.warn('Custom marker loading failed, using default:', markerError);
+                        await useDefaultMarker();
+                        return;
+                    }
                 } else {
                     // デフォルトマーカーを使用
                     await useDefaultMarker();
+                    return;
                 }
                 
                 // キャラクターモデルの設定
@@ -424,9 +478,12 @@
             // MindAR初期化完了イベント
             arScene.addEventListener('renderstart', () => {
                 console.log('🚀 MindAR scene initialized');
-                loading.style.display = 'none';
-                statusOverlay.style.display = 'block';
-                instructions.style.display = 'block';
+                // プロジェクトデータの読み込みが完了していない場合のみローディングを非表示
+                if (loading.style.display !== 'none') {
+                    loading.style.display = 'none';
+                    statusOverlay.style.display = 'block';
+                    instructions.style.display = 'block';
+                }
                 updateStatus(markerStatus, '検出待機中', 'warning');
             });
             
