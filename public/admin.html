@@ -494,7 +494,7 @@
                         <div style="margin: 10px 0; text-align: center;">
                             <div style="background: #f8f9fa; padding: 10px; border-radius: 6px; margin-bottom: 10px;">
                                 <div style="font-size: 12px; color: #666; margin-bottom: 5px;">📱 ARアクセス用QRコード</div>
-                                <div style="font-size: 11px; color: #e74c3c; margin-bottom: 5px;">⚠️ 現在Hiroマーカーのみ対応。カスタムマーカーは開発中</div>
+                                <div style="font-size: 11px; color: #3498db; margin-bottom: 5px;">🧠 MindAR.js使用 - カスタムマーカー対応</div>
                                 <div id="qr-${project.id}" style="display: inline-block;"></div>
                             </div>
                         </div>
@@ -519,16 +519,13 @@
         }
         
         function viewAR(projectId) {
-            // MindARバージョンと従来版の選択
-            const useMindAR = confirm('高精度なMindAR版を使用しますか？\n\nOK: MindAR版（推奨）\nキャンセル: 従来版');
-            const arPage = useMindAR ? './ar-mindar.html' : './ar.html';
-            window.open(`${arPage}?project=${projectId}`, '_blank');
+            // 常にMindAR版を使用
+            window.open(`./ar-mindar.html?project=${projectId}`, '_blank');
         }
         
         function openARViewer() {
-            const useMindAR = confirm('高精度なMindAR版を使用しますか？\n\nOK: MindAR版（推奨）\nキャンセル: 従来版');
-            const arPage = useMindAR ? './ar-mindar.html' : './ar.html';
-            window.open(arPage, '_blank');
+            // 常にMindAR版を使用
+            window.open('./ar-mindar.html', '_blank');
         }
         
         // ファイルアップロード
@@ -1175,7 +1172,7 @@
         
         // QRコード生成関数
         function generateQRCode(projectId) {
-            const arUrl = `${window.location.origin}/ar.html?project=${projectId}`;
+            const arUrl = `${window.location.origin}/ar-mindar.html?project=${projectId}`;
             const qrContainer = document.getElementById(`qr-${projectId}`);
             
             if (qrContainer) {
