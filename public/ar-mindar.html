@@ -346,9 +346,25 @@
         function updateDebugInfo(message) {
             const debugInfo = document.getElementById('debug-info');
             if (debugInfo) {
-                debugInfo.textContent = message;
+                const timestamp = new Date().toLocaleTimeString();
+                debugInfo.textContent = `[${timestamp}] ${message}`;
             }
         }
+        
+        // 初期化時にデバッグ情報を表示
+        document.addEventListener('DOMContentLoaded', () => {
+            updateDebugInfo('ARアプリ初期化中...');
+            
+            // デバッグパネルの初期表示を確実にする
+            setTimeout(() => {
+                const debugPanel = document.getElementById('debug-panel');
+                if (debugPanel) {
+                    debugPanel.style.display = 'block';
+                    debugPanel.style.visibility = 'visible';
+                    console.log('Debug panel forced visible');
+                }
+            }, 1000);
+        });
         
         // プロジェクトデータの読み込み
         async function loadProjectData() {
@@ -625,8 +641,7 @@
                 
                 markerAnchor.setAttribute('visible', true);
                 
-                // デバッグパネルを表示
-                document.getElementById('debug-panel').style.display = 'block';
+                // デバッグパネルは常時表示済み
                 
                 // キャラクターモデルに出現アニメーション
                 const characterModels = markerAnchor.querySelectorAll('a-gltf-model');
