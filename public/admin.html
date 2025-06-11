@@ -485,7 +485,7 @@
                 card.innerHTML = `
                     <img src="${project.image_url || './placeholder.svg'}" alt="${project.title}" onerror="this.src='./placeholder.svg'">
                     <div class="project-card-content">
-                        <h3>${project.title}</h3>
+                        <h3>${project.title || project.name || 'プロジェクト名なし'}</h3>
                         <p>${project.description || '説明なし'}</p>
                         <p><small>作成日: ${new Date(project.created_at).toLocaleDateString()}</small></p>
                         <p><small style="color: ${project.source === 'supabase' ? '#27ae60' : '#f39c12'};">
@@ -651,9 +651,16 @@
                     return;
                 }
                 
+                const projectName = formData.get('name');
+                if (!projectName || projectName.trim() === '') {
+                    showNotification('プロジェクト名を入力してください', 'warning');
+                    return;
+                }
+                
                 const projectData = {
                     id: `project_${Date.now()}`,
-                    name: formData.get('name'),
+                    name: projectName,
+                    title: projectName, // 互換性のため
                     creator: {
                         userId: 'admin',
                         name: 'Administrator'
@@ -1699,7 +1706,40 @@
             }
         });
         
+        // データ修復機能
+        function repairLocalProjects() {
+            try {
+                const projects = JSON.parse(localStorage.getItem('ar-projects') || '[]');
+                let repaired = false;
+                
+                projects.forEach(project => {
+                    // titleフィールドがない場合、nameからコピー
+                    if (!project.title && project.name) {
+                        project.title = project.name;
+                        repaired = true;
+                    }
+                    // nameもtitleもない場合
+                    if (!project.title && !project.name) {
+                        project.title = `プロジェクト_${project.id || Date.now()}`;
+                        project.name = project.title;
+                        repaired = true;
+                    }
+                });
+                
+                if (repaired) {
+                    localStorage.setItem('ar-projects', JSON.stringify(projects));
+                    console.log('ローカルプロジェクトのデータを修復しました');
+                }
+                
+                return repaired;
+            } catch (error) {
+                console.error('プロジェクト修復エラー:', error);
+                return false;
+            }
+        }
+        
         // 初期読み込み
+        repairLocalProjects(); // データ修復を実行
         loadProjects();
         loadModels();
         checkWebGPUSupport();
