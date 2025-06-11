@@ -166,9 +166,9 @@
                             <label for="character-model">テンプレート3Dモデル</label>
                             <select id="character-model" name="characterModel">
                                 <option value="">モデルなし</option>
-                                <option value="https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Duck/glTF-Binary/Duck.glb">アヒル</option>
-                                <option value="https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Box/glTF-Binary/Box.glb">キューブ</option>
-                                <option value="https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Avocado/glTF-Binary/Avocado.glb">アボカド</option>
+                                <option value="https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Box/glTF-Binary/Box.glb">キューブサンプル</option>
+                                <option value="https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Duck/glTF-Binary/Duck.glb">アヒルモデル</option>
+                                <option value="original-character">オリジナルキャラクター</option>
                             </select>
                             <small style="color: #666; display: block; margin-top: 5px;">テンプレートモデルまたはカスタムGLBファイルのどちらかを選択</small>
                         </div>
@@ -1282,7 +1282,7 @@
             const currentValue = select.value;
             
             // プルダウンをクリア（最初のオプションは残す）
-            select.innerHTML = '<option value="">キャラクターなし（物理キーホルダーのみ）</option>';
+            select.innerHTML = '<option value="">モデルなし</option>';
             
             // APIから取得したモデルを追加
             if (models && models.length > 0) {
@@ -1294,28 +1294,7 @@
                 });
             }
             
-            // 外部サンプルモデルも追加
-            const externalModels = [
-                {
-                    url: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Duck/glTF-Binary/Duck.glb',
-                    title: 'アヒル (外部サンプル)'
-                },
-                {
-                    url: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Box/glTF-Binary/Box.glb',
-                    title: 'キューブ (外部サンプル)'
-                },
-                {
-                    url: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Avocado/glTF-Binary/Avocado.glb',
-                    title: 'アボカド (外部サンプル)'
-                }
-            ];
-            
-            externalModels.forEach(model => {
-                const option = document.createElement('option');
-                option.value = model.url;
-                option.textContent = model.title;
-                select.appendChild(option);
-            });
+            // 外部サンプルモデルは削除（シンプル化のため）
             
             
             // 選択値を復元
