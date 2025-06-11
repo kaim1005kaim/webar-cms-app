@@ -127,17 +127,33 @@
               target="_blank" class="marker-link">デフォルトカード</a>を用意<br>
         2. マーカーをカメラに向けてください<br>
         3. AIが高精度でマーカーを認識し、3Dキャラクターが表示されます！<br>
-        <small style="color: #fbbf24;">※ 認識しない場合はデバッグパネルで位置確認できます</small>
+        <small style="color: #ff6b6b; font-weight: bold;">※ 認識しない場合は右下の赤枠デバッグパネルで「🟢簡単テスト」をタップ</small>
     </div>
     
     <!-- デバッグパネル -->
-    <div id="debug-panel" style="display: none;">
-        <div style="margin-bottom: 10px;"><strong>🔧 デバッグ</strong></div>
-        <button class="debug-btn" onclick="toggleReferences()">基準点表示</button>
-        <button class="debug-btn" onclick="forceShowObject()">強制表示</button>
-        <button class="debug-btn" onclick="resetMarker()">マーカーリセット</button>
-        <button class="debug-btn" onclick="testPosition()">位置テスト</button>
-        <div id="debug-info" style="margin-top: 10px; font-size: 10px; color: #ccc;"></div>
+    <div id="debug-panel" style="display: block; position: fixed; bottom: 20px; right: 20px; background: rgba(0, 0, 0, 0.9); color: white; padding: 15px; border-radius: 8px; font-size: 12px; z-index: 10001; max-width: 250px; border: 3px solid #ff6b6b; box-shadow: 0 0 20px rgba(255, 107, 107, 0.5);">
+        <div style="margin-bottom: 15px; text-align: center;"><strong>🔧 デバッグパネル</strong></div>
+        
+        <!-- シンプルテストボタン -->
+        <button onclick="simpleTest()" style="background: #28a745; color: white; border: none; padding: 8px 12px; margin: 3px; border-radius: 4px; font-size: 12px; cursor: pointer; width: 100%;">🟢 簡単テスト</button>
+        
+        <!-- 基本ボタン -->
+        <button onclick="showTestCube()" style="background: #007bff; color: white; border: none; padding: 6px 10px; margin: 2px; border-radius: 4px; font-size: 11px; cursor: pointer; width: 48%; display: inline-block;">🟦 キューブ表示</button>
+        <button onclick="hideTestCube()" style="background: #6c757d; color: white; border: none; padding: 6px 10px; margin: 2px; border-radius: 4px; font-size: 11px; cursor: pointer; width: 48%; display: inline-block;">❌ キューブ非表示</button>
+        
+        <button onclick="showAxis()" style="background: #17a2b8; color: white; border: none; padding: 6px 10px; margin: 2px; border-radius: 4px; font-size: 11px; cursor: pointer; width: 48%; display: inline-block;">🎯 軸表示</button>
+        <button onclick="hideAxis()" style="background: #6c757d; color: white; border: none; padding: 6px 10px; margin: 2px; border-radius: 4px; font-size: 11px; cursor: pointer; width: 48%; display: inline-block;">❌ 軸非表示</button>
+        
+        <!-- ステータス表示 -->
+        <div id="debug-status" style="margin-top: 15px; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 4px; font-size: 10px; line-height: 1.4;">
+            <div style="color: #ffc107;">⚠️ ステータス</div>
+            <div id="debug-info">初期化中...</div>
+        </div>
+        
+        <!-- 操作説明 -->
+        <div style="margin-top: 10px; font-size: 9px; color: #aaa; text-align: center;">
+            マーカー認識しない場合は<br>「簡単テスト」をタップ
+        </div>
     </div>
 
     <!-- MindAR Scene -->
@@ -669,6 +685,107 @@
             
             console.log('MindAR setup complete - enhanced tracking ready!');
         });
+        
+        // シンプルデバッグ関数
+        function simpleTest() {
+            try {
+                console.log('=== 簡単テスト開始 ===');
+                updateDebugInfo('簡単テスト実行中...');
+                
+                // アンカーを強制表示
+                const anchor = document.querySelector('#marker-anchor');
+                if (anchor) {
+                    anchor.setAttribute('visible', 'true');
+                    console.log('アンカーを表示しました');
+                }
+                
+                // テストキューブを表示
+                const testCube = document.querySelector('#test-cube');
+                if (testCube) {
+                    testCube.setAttribute('visible', 'true');
+                    testCube.setAttribute('position', '0 0.2 0');
+                    console.log('テストキューブを表示しました');
+                }
+                
+                // 基準点を表示
+                const centerRef = document.querySelector('#center-reference');
+                if (centerRef) {
+                    centerRef.setAttribute('visible', 'true');
+                    console.log('中心基準点を表示しました');
+                }
+                
+                updateDebugInfo('簡単テスト完了: 赤キューブと緑球が表示されました');
+                console.log('=== 簡単テスト完了 ===');
+                
+            } catch (error) {
+                console.error('簡単テストエラー:', error);
+                updateDebugInfo('簡単テストエラー');
+            }
+        }
+        
+        function showTestCube() {
+            try {
+                const testCube = document.querySelector('#test-cube');
+                const anchor = document.querySelector('#marker-anchor');
+                
+                if (anchor) anchor.setAttribute('visible', 'true');
+                if (testCube) {
+                    testCube.setAttribute('visible', 'true');
+                    updateDebugInfo('テストキューブ表示');
+                    console.log('テストキューブ表示');
+                }
+            } catch (error) {
+                console.error('showTestCube error:', error);
+            }
+        }
+        
+        function hideTestCube() {
+            try {
+                const testCube = document.querySelector('#test-cube');
+                if (testCube) {
+                    testCube.setAttribute('visible', 'false');
+                    updateDebugInfo('テストキューブ非表示');
+                    console.log('テストキューブ非表示');
+                }
+            } catch (error) {
+                console.error('hideTestCube error:', error);
+            }
+        }
+        
+        function showAxis() {
+            try {
+                const elements = ['#center-reference', '#x-axis', '#y-axis', '#z-axis'];
+                const anchor = document.querySelector('#marker-anchor');
+                
+                if (anchor) anchor.setAttribute('visible', 'true');
+                
+                elements.forEach(selector => {
+                    const element = document.querySelector(selector);
+                    if (element) element.setAttribute('visible', 'true');
+                });
+                
+                updateDebugInfo('軸と基準点表示');
+                console.log('軸と基準点表示');
+            } catch (error) {
+                console.error('showAxis error:', error);
+            }
+        }
+        
+        function hideAxis() {
+            try {
+                const elements = ['#center-reference', '#x-axis', '#y-axis', '#z-axis'];
+                
+                elements.forEach(selector => {
+                    const element = document.querySelector(selector);
+                    if (element) element.setAttribute('visible', 'false');
+                });
+                
+                updateDebugInfo('軸と基準点非表示');
+                console.log('軸と基準点非表示');
+            } catch (error) {
+                console.error('hideAxis error:', error);
+            }
+        }
     </script>
 </body>
 </html>
