@@ -693,9 +693,6 @@
                     let finalModelUrl = formData.get('characterModel');
                     if (uploadedGlbData) {
                         finalModelUrl = uploadedGlbData; // Base64データを保存
-                    } else if (finalModelUrl === 'custom-upload') {
-                        showNotification('GLBファイルをアップロードしてください', 'warning');
-                        return;
                     }
                     
                     // GLBファイルが大きすぎる場合はローカルストレージにフォールバック
@@ -1224,11 +1221,6 @@
                 select.appendChild(option);
             });
             
-            // カスタムGLBアップロードオプションを追加
-            const customUploadOption = document.createElement('option');
-            customUploadOption.value = 'custom-upload';
-            customUploadOption.textContent = '🆕 カスタムGLBをアップロード';
-            select.appendChild(customUploadOption);
             
             // 選択値を復元
             if (currentValue && select.querySelector(`option[value="${currentValue}"]`)) {
@@ -1240,10 +1232,8 @@
         let uploadedGlbData = null;
         
         document.getElementById('character-model').addEventListener('change', function(e) {
-            // GLB upload section is now always visible
-            // Only clear the uploaded data if a predefined model is selected
-            if (e.target.value !== 'custom-upload' && e.target.value !== '') {
-                // Clear GLB data when switching to predefined models
+            // テンプレートモデルを選択した場合、カスタムGLBデータをクリア
+            if (e.target.value !== '') {
                 uploadedGlbData = null;
                 document.getElementById('glb-preview').style.display = 'none';
             }
