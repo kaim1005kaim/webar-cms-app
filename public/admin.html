@@ -900,25 +900,53 @@
         
         async function deleteProject(projectId) {
             if (confirm('このプロジェクトを削除しますか？')) {
+                let supabaseDeleted = false;
+                let localDeleted = false;
+                
+                // Supabaseから削除を試行
                 try {
-                    // Supabaseから削除を試行
                     const response = await fetch(`${SUPABASE_URL}/rest/v1/projects?id=eq.${projectId}`, {
                         method: 'DELETE',
                         headers: SUPABASE_HEADERS
                     });
                     
                     if (response.ok) {
-                        showNotification('プロジェクトを削除しました', 'success');
-                    } else {
-                        throw new Error('Supabase削除失敗');
+                        supabaseDeleted = true;
+                        console.log('Supabaseから削除成功:', projectId);
                     }
                 } catch (supabaseError) {
-                    console.warn('Supabase削除失敗、ローカルストレージから削除:', supabaseError);
-                    // フォールバック: ローカルストレージから削除
+                    console.warn('Supabase削除エラー:', supabaseError);
+                }
+                
+                // ローカルストレージからも削除
+                try {
                     const projects = JSON.parse(localStorage.getItem('ar-projects') || '[]');
                     const filteredProjects = projects.filter(p => p.id !== projectId);
-                    localStorage.setItem('ar-projects', JSON.stringify(filteredProjects));
-                    showNotification('プロジェクトを削除しました（ローカル）', 'success');
+                    if (projects.length !== filteredProjects.length) {
+                        localStorage.setItem('ar-projects', JSON.stringify(filteredProjects));
+                        localDeleted = true;
+                        console.log('ローカルストレージから削除成功:', projectId);
+                    }
+                    
+                    // 大きなGLBファイルのデータも削除
+                    const glbDataKey = `glb-data-${projectId}`;
+                    if (localStorage.getItem(glbDataKey)) {
+                        localStorage.removeItem(glbDataKey);
+                        console.log('GLBデータも削除:', glbDataKey);
+                    }
+                } catch (localError) {
+                    console.error('ローカルストレージ削除エラー:', localError);
+                }
+                
+                // 結果通知
+                if (supabaseDeleted && localDeleted) {
+                    showNotification('プロジェクトを完全に削除しました', 'success');
+                } else if (supabaseDeleted) {
+                    showNotification('Supabaseから削除しました', 'success');
+                } else if (localDeleted) {
+                    showNotification('ローカルから削除しました', 'success');
+                } else {
+                    showNotification('削除に失敗しました', 'error');
                 }
                 
                 await loadProjects();
@@ -1065,12 +1093,76 @@
             input.click();
         }
         
-        function clearAllData() {
-            if (confirm('全テーダを削除しますか？この操作は元に戻せません。')) {
-                localStorage.removeItem('ar-projects');
-                localStorage.removeItem('ar-settings');
-                loadProjects();
-                showNotification('全データを削除しました', 'success');
+        async function clearAllData() {
+            if (confirm('全データを削除しますか？この操作は元に戻せません。\n\nSupabaseとローカルストレージの両方から削除されます。')) {
+                if (confirm('本当に全て削除してよろしいですか？')) {
+                    let supabaseCleared = false;
+                    let localCleared = false;
+                    
+                    // Supabaseから全プロジェクトを削除
+                    try {
+                        // まず全プロジェクトを取得
+                        const getResponse = await fetch(`${SUPABASE_URL}/rest/v1/projects?select=*`, {
+                            method: 'GET',
+                            headers: SUPABASE_HEADERS
+                        });
+                        
+                        if (getResponse.ok) {
+                            const projects = await getResponse.json();
+                            
+                            // 各プロジェクトを削除
+                            for (const project of projects) {
+                                try {
+                                    await fetch(`${SUPABASE_URL}/rest/v1/projects?id=eq.${project.id}`, {
+                                        method: 'DELETE',
+                                        headers: SUPABASE_HEADERS
+                                    });
+                                    console.log('Supabaseから削除:', project.id);
+                                } catch (err) {
+                                    console.error('個別削除エラー:', err);
+                                }
+                            }
+                            supabaseCleared = true;
+                            console.log('Supabase全プロジェクト削除完了');
+                        }
+                    } catch (error) {
+                        console.error('Supabase削除エラー:', error);
+                    }
+                    
+                    // ローカルストレージをクリア
+                    try {
+                        // プロジェクトデータ
+                        localStorage.removeItem('ar-projects');
+                        localStorage.removeItem('ar-settings');
+                        
+                        // GLBデータも全て削除
+                        const keysToRemove = [];
+                        for (let i = 0; i < localStorage.length; i++) {
+                            const key = localStorage.key(i);
+                            if (key && key.startsWith('glb-data-')) {
+                                keysToRemove.push(key);
+                            }
+                        }
+                        keysToRemove.forEach(key => localStorage.removeItem(key));
+                        
+                        localCleared = true;
+                        console.log('ローカルストレージ全削除完了');
+                    } catch (error) {
+                        console.error('ローカルストレージ削除エラー:', error);
+                    }
+                    
+                    // 結果通知
+                    if (supabaseCleared && localCleared) {
+                        showNotification('全データを完全に削除しました', 'success');
+                    } else if (supabaseCleared) {
+                        showNotification('Supabaseのデータを削除しました', 'warning');
+                    } else if (localCleared) {
+                        showNotification('ローカルデータを削除しました', 'warning');
+                    }
+                    
+                    await loadProjects();
+                    await updateStats();
+                }
             }
         }
         
